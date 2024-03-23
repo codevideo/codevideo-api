@@ -6,7 +6,7 @@ The Node express API for CodeVideo video creation. Uses [`codevideo-backend-engi
 
 ### Storage
 
-You'll need a S3 bucket or similar to store the videos. (I personally use Digital Ocean Spaces.)
+You'll need a S3 bucket or similar to store the videos. (I personally use Digital Ocean Spaces, but they are compatible with the AWS SDK.)
 
 ### Supabase
 
