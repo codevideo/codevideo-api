@@ -3,7 +3,7 @@ import {
   incrementJobsInQueue,
   getJobsInQueue,
   addJob,
-} from "../supabase.js";
+} from "../supabase/supabase.js";
 import { v4 as uuidv4 } from "uuid";
 import { startVideoJob } from "./startVideoJob.js";
 

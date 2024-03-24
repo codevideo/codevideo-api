@@ -1,0 +1,148 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "CodeVideo API",
+    "description": "API for generating videos based on specified actions",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/enqueue-video-job": {
+      "post": {
+        "summary": "Enqueue a video generation job",
+        "description": "Enqueue a video generation job with the specified actions",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Video generation enqueued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Video generation enqueued successfully"
+                    },
+                    "guidv4": {
+                      "type": "string",
+                      "example": "1a2b3c4d-5e6f-7g8h-9i10-jk1l2m3n4o5p"
+                    },
+                    "jobsInQueue": {
+                      "type": "integer",
+                      "example": 5
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Internal Server Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/create-video-immediately": {
+      "post": {
+        "summary": "Create a video immediately (for testing purposes)",
+        "description": "Create a video immediately with the specified actions",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Video created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "example": "https://coffee-app.sfo2.cdn.digitaloceanspaces.com/codevideo/47a2ad38-3364-4031-972a-2d7705de2d4a.mp4"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Internal Server Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RequestBody": {
+        "type": "object",
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IAction"
+            }
+          }
+        }
+      },
+      "IAction": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the action to perform",
+            "example": "speak-before"
+          },
+          "value": {
+            "type": "string",
+            "description": "The value of the action",
+            "example": "I'm going to log \"Hello, world!\" to the console."
+          }
+        }
+      }
+    }
+  }
+}

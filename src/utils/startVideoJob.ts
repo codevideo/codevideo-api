@@ -1,6 +1,6 @@
 import { IAction } from "@fullstackcraftllc/codevideo-types";
 import { generateVideoFromActions } from "@fullstackcraftllc/codevideo-backend-engine";
-import { decrementJobsInQueue, updateJob } from "../supabase.js";
+import { decrementJobsInQueue, updateJob } from "../supabase/supabase.js";
 import { uploadFileToSpaces } from "./uploadFileToSpaces.js";
 
 // global lock variable and queue lol
@@ -17,7 +17,7 @@ export const startVideoJob = async (
         const video = await generateVideoFromActions(actions);
   
         // Upload video to digital ocean bucket with the guidv4 as the filename
-        await uploadFileToSpaces("coffee-app", video, `${guidv4}.mp4`);
+        await uploadFileToSpaces(video, `${guidv4}.mp4`);
         
         // Decrement jobs in queue counter after processing
         await decrementJobsInQueue();

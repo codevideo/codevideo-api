@@ -56,38 +56,40 @@ With that DB work done, you should be ready to run the API.
 
 Clone this repository:
 
-```bash
+```shell
 git clone
 ```
 
 Install dependencies:
 
-```bash
+```shell
 npm install
 ```
 
 Start the server:
 
-```bash
+```shell
 npm start
 ```
 
 If all goes well, you should see the following message:
 
-```bash
+```shell
 Server running on port 3000
 ```
 
 ## Run via Docker
 
-Build the image:
+First start up the API container:
 
-```bash
-docker build -t codevideo-api .
+```shell
+docker-compose build --no-cache && docker-compose up -d
 ```
 
-Run the container:
+Start up the nginx container:
 
-```bash
-docker run -p 3000:3000 codevideo-api
+```shell
+docker-compose -f docker-compose-nginx.yml build --no-cache && docker-compose -f docker-compose-nginx.yml up -d
 ```
+
+

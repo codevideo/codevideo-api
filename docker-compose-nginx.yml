@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+    restart: always
+
+networks:
+  codevideo-network:
+    driver: bridge

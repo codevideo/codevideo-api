@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  codevideo-backend-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: codevideo-backend-engine
+    container_name: codevideo-backend-engine
+    ports:
+      - "7000:7000"
+    restart: always
+
+networks:
+  codevideo-network:
+    driver: bridge
