@@ -13,3 +13,7 @@ services:
     restart: always
     networks:
       - codevideo-network
+
+networks:
+  codevideo-network:
+    driver: bridge
