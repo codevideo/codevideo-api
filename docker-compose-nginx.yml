@@ -10,6 +10,8 @@ services:
     ports:
       - "80:80"
     restart: always
+    networks:
+      - codevideo-network
 
 networks:
   codevideo-network:
