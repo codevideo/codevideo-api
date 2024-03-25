@@ -85,7 +85,7 @@ First ensure that the network is created:
 ```shell
 docker network create codevideo-network
 ```
-Then start up the API container wand NGINX container:
+Then start up the API container and NGINX container:
 
 ```shell
 docker-compose build --no-cache && docker-compose up -d
