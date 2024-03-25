@@ -25,6 +25,8 @@ services:
     restart: always
     networks:
       - codevideo-network
+    depends_on:
+      - codevideo-backend-engine
 
 networks:
   codevideo-network:
