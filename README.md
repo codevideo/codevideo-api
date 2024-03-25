@@ -75,7 +75,7 @@ npm start
 If all goes well, you should see the following message:
 
 ```shell
-Server running on port 3000
+Server running on port 7000
 ```
 
 ## Run via Docker
@@ -85,15 +85,10 @@ First ensure that the network is created:
 ```shell
 docker network create codevideo-network
 ```
-Then start up the API container:
+Then start up the API container wand NGINX container:
 
 ```shell
 docker-compose build --no-cache && docker-compose up -d
-```
-Then start up the nginx container:
-
-```shell
-docker-compose -f docker-compose-nginx.yml build --no-cache && docker-compose -f docker-compose-nginx.yml up -d
 ```
 
 

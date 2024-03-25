@@ -12,6 +12,19 @@ services:
     restart: always
     networks:
       - codevideo-network
+  
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: always
+    networks:
+      - codevideo-network
 
 networks:
   codevideo-network:
