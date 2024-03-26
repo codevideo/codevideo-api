@@ -30,11 +30,12 @@
   "homepage": "https://github.com/codevideo/codevideo-api#readme",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.540.0",
-    "@fullstackcraftllc/codevideo-backend-engine": "^1.1.0",
+    "@fullstackcraftllc/codevideo-backend-engine": "^1.2.0",
     "@fullstackcraftllc/codevideo-types": "^1.2.3",
     "@supabase/supabase-js": "^2.39.8",
     "dotenv": "^16.4.5",
     "express": "^4.19.1",
+    "open": "^10.1.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
     "uuid": "^9.0.1"

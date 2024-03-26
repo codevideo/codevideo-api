@@ -1,3 +1,4 @@
+import { TextToSpeechOptions } from '@fullstackcraftllc/codevideo-backend-engine';
 import { IAction } from "@fullstackcraftllc/codevideo-types";
 import {
   incrementJobsInQueue,
@@ -8,14 +9,15 @@ import { v4 as uuidv4 } from "uuid";
 import { startVideoJob } from "./startVideoJob.js";
 
 export const enqueueVideoJob = async (
-  actions: Array<IAction>
+  actions: Array<IAction>,
+  textToSpeechOption: TextToSpeechOptions
 ): Promise<{ guidv4: string; jobsInQueue: number }> => {
   // Generate a unique token (guidv4) for this job
   const guidv4 = uuidv4();
 
   // start the job for these actions
   // note this is async but we don't await it
-  startVideoJob(guidv4, actions);
+  startVideoJob(guidv4, actions, textToSpeechOption);
 
   // Increment jobs in queue counter
   await incrementJobsInQueue();

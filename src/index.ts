@@ -1,5 +1,8 @@
-import express, { Request, Response } from "express";
-import { generateVideoFromActions } from "@fullstackcraftllc/codevideo-backend-engine";
+import express, { Request, Response, text } from "express";
+import {
+  generateVideoFromActions,
+  TextToSpeechOptions,
+} from "@fullstackcraftllc/codevideo-backend-engine";
 import { IAction } from "@fullstackcraftllc/codevideo-types";
 import swaggerUi from "swagger-ui-express";
 import { enqueueVideoJob } from "./utils/enqueueVideoJob.js";
@@ -8,6 +11,7 @@ import { uploadFileToSpaces } from "./utils/uploadFileToSpaces.js";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import path from "path";
+import open from "open";
 
 // Initialize Express app
 const app = express();
@@ -22,6 +26,9 @@ app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Define the interface for the request body
 interface RequestBody {
   actions: IAction[];
+  textToSpeechOption: TextToSpeechOptions;
+  ttsApiKey?: string;
+  ttsVoiceId?: string;
 }
 
 // Get the directory name of the current module file
@@ -59,15 +66,27 @@ app.post(
   "/enqueue-video-job",
   async (req: Request<{}, {}, RequestBody>, res: Response) => {
     try {
-      const actions = req.body.actions;
-      const { guidv4, jobsInQueue } = await enqueueVideoJob(actions);
-      res
-        .status(200)
-        .json({
-          message: "Video generation enqueued successfully",
-          guidv4,
-          jobsInQueue,
-        });
+      const { actions, textToSpeechOption } = req.body;
+      if (
+        textToSpeechOption === "openai" ||
+        textToSpeechOption === "elevenlabs" ||
+        textToSpeechOption === "sayjs"
+      ) {
+        return res
+          .status(400)
+          .json({
+            error: "Currently only festival is supported as a TTS engine",
+          });
+      }
+      const { guidv4, jobsInQueue } = await enqueueVideoJob(
+        actions,
+        textToSpeechOption
+      );
+      res.status(200).json({
+        message: "Video generation enqueued successfully",
+        guidv4,
+        jobsInQueue,
+      });
     } catch (error) {
       console.error("Error enqueuing action:", error);
       res.status(500).json({ error: "Internal Server Error" });
@@ -80,8 +99,24 @@ app.post(
   "/create-video-immediately",
   async (req: Request<{}, {}, RequestBody>, res: Response) => {
     try {
-      const actions = req.body.actions;
-      const videoBuffer = await generateVideoFromActions(actions);
+      const { actions, textToSpeechOption } = req.body;
+
+      if (
+        textToSpeechOption === "openai" ||
+        textToSpeechOption === "elevenlabs" ||
+        textToSpeechOption === "sayjs"
+      ) {
+        return res
+          .status(400)
+          .json({
+            error: "Currently only festival is supported as a TTS engine",
+          });
+      }
+
+      const videoBuffer = await generateVideoFromActions(
+        actions,
+        textToSpeechOption
+      );
       const videoUrl = await uploadFileToSpaces(videoBuffer, `${uuidv4()}.mp4`);
       // return json response with url
       res.status(200).json({ url: videoUrl });
@@ -96,3 +131,8 @@ app.post(
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+// if in dev mode, open to swagger page in chrome
+if (process.env.NODE_ENV === "development") {
+  open("http://localhost:7000/swagger");
+}

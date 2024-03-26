@@ -1,5 +1,5 @@
 import { IAction } from "@fullstackcraftllc/codevideo-types";
-import { generateVideoFromActions } from "@fullstackcraftllc/codevideo-backend-engine";
+import { generateVideoFromActions, TextToSpeechOptions } from "@fullstackcraftllc/codevideo-backend-engine";
 import { decrementJobsInQueue, updateJob } from "../supabase/supabase.js";
 import { uploadFileToSpaces } from "./uploadFileToSpaces.js";
 
@@ -9,12 +9,13 @@ const jobsQueue: Array<{ guidv4: string; actions: Array<IAction> }> = [];
 
 export const startVideoJob = async (
     guidv4: string,
-    actions: Array<IAction>
+    actions: Array<IAction>,
+    textToSpeechOption: TextToSpeechOptions
   ) => {
     // If we're not processing a job, start processing this one
     if (!isProcessing) {
       try {
-        const video = await generateVideoFromActions(actions);
+        const video = await generateVideoFromActions(actions, textToSpeechOption);
   
         // Upload video to digital ocean bucket with the guidv4 as the filename
         await uploadFileToSpaces(video, `${guidv4}.mp4`);
@@ -29,7 +30,7 @@ export const startVideoJob = async (
         if (jobsQueue.length > 0) {
           const nextJob = jobsQueue.shift();
           if (nextJob) {
-            startVideoJob(nextJob.guidv4, nextJob.actions);
+            startVideoJob(nextJob.guidv4, nextJob.actions, textToSpeechOption);
           }
         }
       } catch (error) {
