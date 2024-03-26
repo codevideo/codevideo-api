@@ -12,7 +12,7 @@ services:
     restart: always
     networks:
       - codevideo-network
-  
+
   nginx:
     build:
       context: ./nginx
@@ -27,6 +27,12 @@ services:
       - codevideo-network
     depends_on:
       - codevideo-backend-engine
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+      - ./certbot/conf/:/etc/letsencrypt/:rw
 
 networks:
   codevideo-network:
