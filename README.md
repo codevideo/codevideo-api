@@ -80,6 +80,10 @@ Server running on port 7000
 
 ## Run via Docker
 
+First, make sure you have a `.env` file wherever you are going to run this API. (See `.env.example` in the root of the project).
+
+*Note: we know Docker stuff is a pain in the ass, so note here we are using the newer `docker compose` and `docker-compose` syntax.
+
 First ensure that the network is created:
 
 ```shell
@@ -88,7 +92,7 @@ docker network create codevideo-network
 Then start up the API container and NGINX container:
 
 ```shell
-docker-compose build --no-cache && docker-compose up -d
+docker compose build --no-cache && docker compose up -d
 ```
 
 ## Steps for SSL
@@ -100,13 +104,13 @@ Rename all instances of `api.codevideo.io` in that `.conf` file to your site nam
 To dry run (this example for api.codevideo.io)
 
 ```shell
-docker-compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io --dry-run
+docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io --dry-run
 ```
 
 If the dry run works, issue the certbot command without --dry-run:
 
 ```shell
-docker-compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io
+docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io
 ```
 
 Because the certbot image is mapped to folders in this repository, your certs will be in `certbot/conf/live/` folder.
@@ -114,11 +118,11 @@ Because the certbot image is mapped to folders in this repository, your certs wi
 You can now uncomment the 443 block in your `.conf` file and restart the NGINX container:
 
 ```shell
-docker-compose down && docker-compose up -d
+docker compose down && docker compose up -d
 ```
 
 ## Renew SSL Certs
 
 ```shell
-docker-compose run --rm certbot renew
+docker compose run --rm certbot renew
 ```
