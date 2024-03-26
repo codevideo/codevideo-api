@@ -91,4 +91,10 @@ Then start up the API container and NGINX container:
 docker-compose build --no-cache && docker-compose up -d
 ```
 
+## Get certs
 
+To dry run (this example for api.codevideo.io)
+
+```shell
+docker-compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io --dry-run
+```
