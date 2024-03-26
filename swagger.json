@@ -125,6 +125,12 @@
             "items": {
               "$ref": "#/components/schemas/IAction"
             }
+          },
+          "textToSpeechOption": {
+            "type": "string",
+            "items": {
+              "$ref": "#/components/schemas/TextToSpeechOption"
+            }
           }
         }
       },
@@ -142,6 +148,9 @@
             "example": "I'm going to log \"Hello, world!\" to the console."
           }
         }
+      },
+      "TextToSpeechOption": {
+        "type": "string"
       }
     }
   }
