@@ -114,5 +114,11 @@ Because the certbot image is mapped to folders in this repository, your certs wi
 You can now uncomment the 443 block in your `.conf` file and restart the NGINX container:
 
 ```shell
-docker-compose restart nginx
+docker-compose down && docker-compose up -d
+```
+
+## Renew SSL Certs
+
+```shell
+docker-compose run --rm certbot renew
 ```
