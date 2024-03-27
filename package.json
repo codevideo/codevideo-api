@@ -32,6 +32,8 @@
     "@aws-sdk/client-s3": "^3.540.0",
     "@fullstackcraftllc/codevideo-backend-engine": "^1.2.2",
     "@fullstackcraftllc/codevideo-types": "^1.2.3",
+    "@sentry/node": "^7.108.0",
+    "@sentry/profiling-node": "^7.108.0",
     "@supabase/supabase-js": "^2.39.8",
     "dotenv": "^16.4.5",
     "express": "^4.19.1",
