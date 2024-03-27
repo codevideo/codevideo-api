@@ -16,14 +16,16 @@ COPY . .
 # Build TypeScript files
 RUN npm run build
 
-# Stage 2: Use a lightweight Node.js image to run the app
-FROM node:20-alpine
+# Stage 2: Use a Debian-based Node.js image to run the app
+FROM node:20-slim
 
 # Set working directory
 WORKDIR /usr/src/app
 
 # Install necessary Linux CLI tools
-RUN apk add --no-cache festival lame
+RUN apt-get update && \
+    apt-get install -y festival lame && \
+    apt-get clean
 
 # Copy only the built files from the previous stage
 COPY --from=builder /usr/src/app/dist ./dist
