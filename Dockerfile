@@ -24,7 +24,7 @@ WORKDIR /usr/src/app
 
 # Install necessary Linux CLI tools
 RUN apt-get update && \
-    apt-get install -y festival lame && \
+    apt-get install -y festival lame ffmpeg && \
     apt-get clean
 
 # Copy only the built files from the previous stage
