@@ -22,17 +22,14 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /usr/src/app
 
+# Install necessary Linux CLI tools
+RUN apk add --no-cache festival lame
+
 # Copy only the built files from the previous stage
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/package*.json ./
-
-# But we also need the swagger.json file
 COPY --from=builder /usr/src/app/swagger.json ./
-
-# and the .env file
 COPY --from=builder /usr/src/app/.env ./
-
-# and the ascii art file
 COPY --from=builder /usr/src/app/codeVideoAsciiArt.txt ./
 
 # Install production dependencies
