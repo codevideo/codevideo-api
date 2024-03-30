@@ -2,57 +2,30 @@
 
 The Node express API for CodeVideo video creation. Uses [`codevideo-backend-engine`](https://github.com/codevideo/codevideo-backend-engine) behind the scenes.
 
-## Prerequisites
+## Usage from a client
 
-### Storage
+Simply call https://api.codevideo.io/generate-video-immediately with a JSON body corresponding to the interface defined in [IGenerateVideoFromActionsOptions in codevideo-backend-engine](https://github.com/codevideo/codevideo-backend-engine/blob/main/src/interfaces/IGenerateVideoFromActionsOptions.ts)
 
-You'll need a S3 bucket or similar to store the videos. (I personally use Digital Ocean Spaces, but they are compatible with the AWS SDK.)
+This is a first in first out endpoint, so expect this URL to get gunked up as CodeVideo gains traction (if ever, lol):
 
-### Supabase
-
-You'll need a Supabase instance with the following tables:
-
-```sql
-create table job_counts (
-  id serial primary key,
-  count integer
-);
+```typescript
+const response = await fetch("https://api.codevideo.io/generate-video-immediately", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    actions,
+    language,
+    textToSpeechOption,
+  }),
+});
+const data = await response.json()
+// bucket url to mp4 file
+console.log(data.url)
 ```
 
-```sql
-create table jobs (
-    id uuid primary key,
-    status text
-);
-```
-
-and the following stored procedures:
-
-```sql
-create function increment_jobs_in_queue () 
-returns void as
-$$
-  update job_counts 
-  set count = count + 1
-  where id = 1
-$$ 
-language sql volatile;
-```
-
-```sql
-create function decrement_jobs_in_queue ()
-returns void as
-$$
-  update job_counts
-  set count = count - 1
-  where id = 1
-$$
-language sql volatile;
-```
-
-With that DB work done, you should be ready to run the API.
-
-## Get Started
+## Run locally via Node
 
 Clone this repository:
 
@@ -78,7 +51,7 @@ If all goes well, you should see the following message:
 Server running on port 7000
 ```
 
-## Run via Docker
+## Run locally via Docker
 
 First, make sure you have a `.env` file wherever you are going to run this API. (See `.env.example` in the root of the project).
 
@@ -95,7 +68,27 @@ Then start up the API container and NGINX container:
 docker compose build --no-cache && docker compose up -d
 ```
 
-## Steps for SSL
+## Self Deployment (On Premise or Cloud)
+
+### Storage
+
+You'll need a S3 bucket or similar to store the videos. (I personally use Digital Ocean Spaces, but Spaces are compatible with the AWS SDK.)
+
+### Supabase
+
+You'll need a Supabase instance with a single `jobs` table:
+
+```sql
+create table jobs (
+    id uuid primary key,
+    status text default 'queued'
+    created_at timestamptz default now()
+);
+```
+
+After setting up the `jobs` table, you should be ready to run the API.
+
+### Steps for SSL
 
 Rename `nginx/conf/api.codevideo.io.conf` to `nginx/conf/yoursitename.com.conf`
 
@@ -121,8 +114,14 @@ You can now uncomment the 443 block in your `.conf` file and restart the NGINX c
 docker compose down && docker compose up -d
 ```
 
-## Renew SSL Certs
+### Renew SSL Certs
 
 ```shell
 docker compose run --rm certbot renew
+```
+
+## Run Tests (not working yet, jest with ESM typescript lol)
+
+```shell
+npm test
 ```

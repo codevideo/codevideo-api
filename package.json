@@ -30,13 +30,15 @@
   "homepage": "https://github.com/codevideo/codevideo-api#readme",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.540.0",
-    "@fullstackcraftllc/codevideo-backend-engine": "^1.2.2",
-    "@fullstackcraftllc/codevideo-types": "^1.2.3",
+    "@fullstackcraftllc/codevideo-backend-engine": "^1.4.0",
+    "@fullstackcraftllc/codevideo-types": "^1.2.8",
     "@sentry/node": "^7.108.0",
     "@sentry/profiling-node": "^7.108.0",
     "@supabase/supabase-js": "^2.39.8",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.1",
+    "node-cron": "^3.0.3",
     "open": "^10.1.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
@@ -46,6 +48,7 @@
     "@babel/core": "^7.24.3",
     "@babel/preset-env": "^7.24.3",
     "@babel/preset-typescript": "^7.24.1",
+    "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",
     "@types/swagger-jsdoc": "^6.0.4",
@@ -54,6 +57,8 @@
     "babel-jest": "^29.7.0",
     "cross-env": "^7.0.3",
     "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
     "typescript": "^5.4.3"
   }
 }

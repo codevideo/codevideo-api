@@ -1,22 +1,39 @@
-import express, { Request, Response, text } from "express";
+import os from "os";
+import express, { Request, Response } from "express";
 import {
   generateVideoFromActions,
-  TextToSpeechOptions,
+  IGenerateVideoFromActionsOptions,
 } from "@fullstackcraftllc/codevideo-backend-engine";
-import { IAction } from "@fullstackcraftllc/codevideo-types";
 import swaggerUi from "swagger-ui-express";
-import { enqueueVideoJob } from "./utils/enqueueVideoJob.js";
-import swaggerDocument from "../swagger.json" assert { type: "json" };
-import { uploadFileToSpaces } from "./utils/uploadFileToSpaces.js";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import path from "path";
 import open from "open";
-import * as Sentry from "@sentry/node"
+import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
+import cors from "cors";
+import { enqueueVideoJob } from "./utils/enqueueVideoJob.js";
+import swaggerDocument from "../swagger.json" assert { type: "json" };
+import { uploadFileToSpaces } from "./utils/uploadFileToSpaces.js";
+import cron from "node-cron";
+import { runVideoJob } from "./utils/runVideoJob.js";
+import { getSumOfProcesses } from "./utils/getSumOfProcesses.js";
+
+// initialize jobs queue
+const jobsQueue: Array<{
+  guidv4: string;
+  videoOptions: IGenerateVideoFromActionsOptions;
+}> = [];
+
+// Define the CORS options
+const corsOptions = {
+  origin: ["http://localhost:8888", "https://api.codevideo.io"],
+  methods: ["GET", "POST"],
+};
 
 // Initialize Express app
 const app = express();
+
 const port = process.env.PORT || 7000;
 
 Sentry.init({
@@ -40,19 +57,14 @@ app.use(Sentry.Handlers.requestHandler());
 // TracingHandler creates a trace for every incoming request
 app.use(Sentry.Handlers.tracingHandler());
 
+// Enable CORS middleware for all requests
+app.use(cors(corsOptions));
+
 // Middleware for parsing JSON bodies
 app.use(express.json());
 
 // Serve Swagger UI
 app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
-// Define the interface for the request body
-interface RequestBody {
-  actions: IAction[];
-  textToSpeechOption: TextToSpeechOptions;
-  ttsApiKey?: string;
-  ttsVoiceId?: string;
-}
 
 // Get the directory name of the current module file
 const dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -87,28 +99,20 @@ We're a software engineering company that Gets Stuff Done™. 🚀
 // Endpoint for enqueuing video generation jobs
 app.post(
   "/enqueue-video-job",
-  async (req: Request<{}, {}, RequestBody>, res: Response) => {
+  async (
+    req: Request<{}, {}, IGenerateVideoFromActionsOptions>,
+    res: Response
+  ) => {
     try {
-      const { actions, textToSpeechOption } = req.body;
-      if (
-        textToSpeechOption === "openai" ||
-        textToSpeechOption === "elevenlabs" ||
-        textToSpeechOption === "sayjs"
-      ) {
-        return res
-          .status(400)
-          .json({
-            error: "Currently only festival is supported as a TTS engine",
-          });
-      }
-      const { guidv4, jobsInQueue } = await enqueueVideoJob(
-        actions,
-        textToSpeechOption
-      );
+      validateBodyParams(req, res);
+      const videoOptions = req.body;
+      const guidv4 = await enqueueVideoJob(videoOptions);
+      // add the job to the queue
+      jobsQueue.push({ guidv4, videoOptions });
       res.status(200).json({
         message: "Video generation enqueued successfully",
         guidv4,
-        jobsInQueue,
+        placeInLine: jobsQueue.length,
       });
     } catch (error) {
       console.error("Error enqueuing action:", error);
@@ -117,29 +121,26 @@ app.post(
   }
 );
 
-// for testing purposes
+// can use as long as codevideo doesn't get too popular - function runs concurrently well (up to 10 jobs tested)
 app.post(
   "/create-video-immediately",
-  async (req: Request<{}, {}, RequestBody>, res: Response) => {
+  async (
+    req: Request<{}, {}, IGenerateVideoFromActionsOptions>,
+    res: Response
+  ) => {
     try {
-      const { actions, textToSpeechOption } = req.body;
-
-      if (
-        textToSpeechOption === "openai" ||
-        textToSpeechOption === "elevenlabs" ||
-        textToSpeechOption === "sayjs"
-      ) {
-        return res
-          .status(400)
-          .json({
-            error: "Currently only festival is supported as a TTS engine",
-          });
+      validateBodyParams(req, res);
+      
+      // check if the server is at maximum generation capacity
+      const sumOfProcesses = await getSumOfProcesses(["ffmpeg", "chrome", "python", "Python"]);
+      if (sumOfProcesses > 30) {
+        return res.status(503).json({
+          error: "The server is currently at maximum CodeVideo generation power. Please wait a bit and try again later.",
+        });
       }
-
-      const videoBuffer = await generateVideoFromActions(
-        actions,
-        textToSpeechOption
-      );
+      const videoOptions = req.body;
+      // again, just to note, this function runs currently "safely"
+      const videoBuffer = await generateVideoFromActions(videoOptions);
       const videoUrl = await uploadFileToSpaces(videoBuffer, `${uuidv4()}.mp4`);
       // return json response with url
       res.status(200).json({ url: videoUrl });
@@ -149,6 +150,49 @@ app.post(
     }
   }
 );
+
+const validateBodyParams = (
+  req: Request<{}, {}, IGenerateVideoFromActionsOptions>,
+  res: Response
+) => {
+  const { actions, language, textToSpeechOption } = req.body;
+
+  if (!actions) {
+    return res.status(400).json({ error: "actions are required" });
+  }
+
+  if (!language) {
+    return res.status(400).json({ error: "language is required" });
+  }
+
+  if (!textToSpeechOption) {
+    return res.status(400).json({ error: "textToSpeechOption is required" });
+  }
+
+  // if actions are more than 100, return that they need to sign for a premium liscense at https://codevideo.io/codevideo-cloud/
+  if (actions.length > 100) {
+    return res.status(400).json({
+      error:
+        "You have more than 100 actions. Please sign up for a premium subscription at https://codevideo.io/codevideo-cloud/ or see how to setup your own CodeVideo engine backend at https://github.com/codevideo/codevideo-api",
+    });
+  }
+
+  if (
+    (textToSpeechOption === "openai" || textToSpeechOption === "elevenlabs") &&
+    (!req.body.ttsApiKey || !req.body.ttsVoiceId)
+  ) {
+    return res.status(400).json({
+      error:
+        "If using 'openai' or 'elevenlabs' as the textToSpeechOption, you must provide both the 'ttsApiKey' and 'ttsVoiceId' parameters.",
+    });
+  }
+
+  if (os.platform() === "linux" && textToSpeechOption === "sayjs") {
+    return res.status(400).json({
+      error: "sayjs is not supported for file export on linux",
+    });
+  }
+};
 
 // The error handler must be registered before any other error middleware and after all controllers
 app.use(Sentry.Handlers.errorHandler());
@@ -162,3 +206,16 @@ app.listen(port, () => {
 if (process.env.NODE_ENV === "development") {
   open("http://localhost:7000/swagger");
 }
+
+// start cron to check for jobs in queue that runs every 1 second
+cron.schedule("* * * * * *", async () => {
+  if (jobsQueue.length > 0) {
+    const videoJob = jobsQueue.shift();
+    if (!videoJob) {
+      console.log("No video job found in queue");
+      return;
+    }
+    console.log("Running video job with GUID ", videoJob.guidv4);
+    await runVideoJob(videoJob);
+  }
+});

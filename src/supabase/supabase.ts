@@ -6,54 +6,35 @@ dotenv.config();
 
 const supabase = createClient(process.env.SUPABASE_URL || '', process.env.SUPABASE_SERVICE_KEY || '');
 
-// for job_counts table
-
-export const incrementJobsInQueue = async () => {
-    const { error } = await supabase
-    .rpc('increment_jobs_in_queue')
-    if (error) {
-        throw new Error('Error incrementing jobs in queue');
-    }
-};
-
-export const decrementJobsInQueue = async () => {
-    const { error } = await supabase.rpc('decrement_jobs_in_queue');
-    if (error) {
-        throw new Error('Error decrementing jobs in queue');
-    }
-};
-
-export const getJobsInQueue = async (): Promise<number> => {
-    const { data, error } = await supabase.from('jobs_in_queue').select('count').match({id: 1})
-    if (error) {
-        throw new Error('Error getting jobs in queue');
-    }
-    if (!data) {
-        throw new Error('No data found for jobs in queue');
-    }
-    return data[0].count;
-}
-
 // for jobs table
 
-export const addJob = async (guidv4: string, status: 'queued' | 'started' | 'done' | 'error') => {
-    const { error } = await supabase.from('jobs').insert({guidv4, status});
+export const addJobToSupabase = async (id: string, status: 'queued' | 'started' | 'done' | 'error') => {
+    const { error } = await supabase.from('jobs').insert({id, status});
     if (error) {
-        throw new Error('Error adding job');
+        throw new Error('Error adding to job table: ' + JSON.stringify(error));
     }
 }
 
-export const updateJob = async (guidv4: string, status: 'queued' | 'started' | 'done' | 'error') => {
-    const { error } = await supabase.from('jobs').update({status}).match({guidv4});
+export const updateJobInSupabase = async (guidv4: string, status: 'queued' | 'started' | 'done' | 'error') => {
+    const { error } = await supabase.from('jobs').update({status}).match({id: guidv4});
     if (error) {
-        throw new Error('Error updating job');
+        throw new Error('Error updating job table: ' + JSON.stringify(error));
     }
 }
 
-export const getJob = async (guidv4: string) => {
+// sort by created_at and return the first one
+export const getNextJobFromSupabase = async () => {
+    const { data, error } = await supabase.from('jobs').select('*').order('created_at').limit(1)
+    if (error) {
+        throw new Error('Error getting next job: ' + JSON.stringify(error));
+    }
+    return data;
+}
+
+export const getJobByIdFromSupabase = async (guidv4: string) => {
     const { data, error } = await supabase.from('jobs').select('id, status').eq('id', guidv4)
     if (error) {
-        throw new Error('Error updating job');
+        throw new Error('Error updating job table: ' + JSON.stringify(error));
     }
     if (!data) {
         throw new Error(`No job found with ${guidv4}`);

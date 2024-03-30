@@ -36,7 +36,7 @@
                       "type": "string",
                       "example": "1a2b3c4d-5e6f-7g8h-9i10-jk1l2m3n4o5p"
                     },
-                    "jobsInQueue": {
+                    "placeInLine": {
                       "type": "integer",
                       "example": 5
                     }
@@ -126,11 +126,11 @@
               "$ref": "#/components/schemas/IAction"
             }
           },
+          "language": {
+            "$ref": "#/components/schemas/language"
+          },
           "textToSpeechOption": {
-            "type": "string",
-            "items": {
-              "$ref": "#/components/schemas/TextToSpeechOption"
-            }
+            "$ref": "#/components/schemas/textToSpeechOption"
           }
         }
       },
@@ -149,8 +149,13 @@
           }
         }
       },
-      "TextToSpeechOption": {
-        "type": "string"
+      "language": {
+        "type": "string",
+        "example": "javascript"
+      },
+      "textToSpeechOption": {
+        "type": "string",
+        "example": "festival"
       }
     }
   }

@@ -1,15 +1,16 @@
 {
     "compilerOptions": {
-      "module": "ESNext",
       "target": "ESNext",
+      "module": "NodeNext",
+      "moduleResolution": "NodeNext",
       "strict": true,
       "esModuleInterop": true,
       "skipLibCheck": true,
       "forceConsistentCasingInFileNames": true,
       "outDir": "./dist",
       "rootDir": "./src",
-      "moduleResolution": "node",
       "resolveJsonModule": true,
+      "noImplicitAny": false
     },
     "include": [
       "src/**/*.ts"

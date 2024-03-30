@@ -27,6 +27,12 @@ RUN apt-get update && \
     apt-get install -y festival lame ffmpeg && \
     apt-get clean
 
+# Install Python and pip
+RUN apt-get install -y python3 python3-pip
+
+# Install coqui-ai TTS package
+RUN pip3 install TTS
+
 # Copy only the built files from the previous stage
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/package*.json ./
