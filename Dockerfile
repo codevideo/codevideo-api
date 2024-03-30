@@ -22,16 +22,10 @@ FROM node:20-slim
 # Set working directory
 WORKDIR /usr/src/app
 
-# Install necessary Linux CLI tools
+# Install necessary Linux CLI tools - festival, lame, ffmpeg, python3, python3-pip, python3-TTS
 RUN apt-get update && \
-    apt-get install -y festival lame ffmpeg && \
+    apt-get install -y festival lame ffmpeg python3 python3-pip python3-TTS && \
     apt-get clean
-
-# Install Python and pip
-RUN apt-get install -y python3 python3-pip
-
-# Install coqui-ai TTS package
-RUN pip3 install TTS
 
 # Copy only the built files from the previous stage
 COPY --from=builder /usr/src/app/dist ./dist

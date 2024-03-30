@@ -65,7 +65,7 @@ docker network create codevideo-network
 Then start up the API container and NGINX container:
 
 ```shell
-docker compose build --no-cache && docker compose up -d
+docker compose build --no-cache && docker compose up -d && docker system prune -f
 ```
 
 ## Self Deployment (On Premise or Cloud)
