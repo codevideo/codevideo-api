@@ -24,8 +24,15 @@ WORKDIR /usr/src/app
 
 # Install necessary Linux CLI tools - festival, lame, ffmpeg, python3, python3-pip, python3-TTS
 RUN apt-get update && \
-    apt-get install -y festival lame ffmpeg python3 python3-pip python3-TTS && \
+    apt-get install -y festival lame ffmpeg python3 python3-pip && \
     apt-get clean
+
+# Install pipx
+RUN python3 -m pip install --user pipx && \
+    python3 -m pipx ensurepath
+
+# Use pipx to install TTS - manages virtual environment for us
+RUN python3 -m pipx install TTS
 
 # Copy only the built files from the previous stage
 COPY --from=builder /usr/src/app/dist ./dist
