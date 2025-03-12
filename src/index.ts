@@ -1,33 +1,23 @@
-import os from "os";
 import express, { Request, Response } from "express";
-import {
-  generateVideoFromActions,
-  IGenerateVideoFromActionsOptions,
-} from "@fullstackcraftllc/codevideo-backend-engine";
 import swaggerUi from "swagger-ui-express";
 import { v4 as uuidv4 } from "uuid";
-import fs from "fs";
 import path from "path";
-import open from "open";
+import fs from "fs";
 import * as Sentry from "@sentry/node";
-import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import cors from "cors";
-import { enqueueVideoJob } from "./utils/enqueueVideoJob.js";
-import swaggerDocument from "../swagger.json" assert { type: "json" };
+import swaggerDocument from "../swagger.json" with { type: "json" };
 import { uploadFileToSpaces } from "./utils/uploadFileToSpaces.js";
-import cron from "node-cron";
-import { runVideoJob } from "./utils/runVideoJob.js";
 import { getSumOfProcesses } from "./utils/getSumOfProcesses.js";
-
-// initialize jobs queue
-const jobsQueue: Array<{
-  guidv4: string;
-  videoOptions: IGenerateVideoFromActionsOptions;
-}> = [];
+import { IAction, ICodeVideoUserMetadata } from "@fullstackcraftllc/codevideo-types";
+import { generateManifestFile } from "./utils/generateManifestFile.js";
+import { validateBodyParams } from "./utils/validateBodyParams.js";
+import { clerkClient, clerkMiddleware, getAuth, requireAuth } from "@clerk/express";
+import { userIsPayAsYouGo } from "./utils/userIsPayAsYouGo.js";
+import 'dotenv/config'
 
 // Define the CORS options
 const corsOptions = {
-  origin: ["http://localhost:8888", "https://api.codevideo.io"],
+  origin: ["http://localhost:8000", "http://localhost:8888", "http://localhost:7001", "http://gatsby-static-server:7001", "https://api.codevideo.io"],
   methods: ["GET", "POST"],
 };
 
@@ -36,26 +26,11 @@ const app = express();
 
 const port = process.env.PORT || 7000;
 
-Sentry.init({
-  dsn: "https://06811c81e57eae0621f15301cd253319@o4505623207149568.ingest.us.sentry.io/4506982569279488",
-  integrations: [
-    // enable HTTP calls tracing
-    new Sentry.Integrations.Http({ tracing: true }),
-    // enable Express.js middleware tracing
-    new Sentry.Integrations.Express({ app }),
-    nodeProfilingIntegration(),
-  ],
-  // Performance Monitoring
-  tracesSampleRate: 1.0, //  Capture 100% of the transactions
-  // Set sampling rate for profiling - this is relative to tracesSampleRate
-  profilesSampleRate: 1.0,
-});
-
 // The request handler must be the first middleware on the app
-app.use(Sentry.Handlers.requestHandler());
+// app.use(Sentry.Handlers.requestHandler());
 
-// TracingHandler creates a trace for every incoming request
-app.use(Sentry.Handlers.tracingHandler());
+// // TracingHandler creates a trace for every incoming request
+// app.use(Sentry.Handlers.tracingHandler());
 
 // Enable CORS middleware for all requests
 app.use(cors(corsOptions));
@@ -68,6 +43,90 @@ app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Get the directory name of the current module file
 const dirname = path.dirname(new URL(import.meta.url).pathname);
+
+// TODO: reactivate once the whole dependency mess with docker is fixed
+// can use as long as codevideo doesn't get too popular - function runs concurrently well (up to 10 jobs tested)
+// app.post(
+//   "/create-video-immediately",
+//   async (
+//     req: Request<{}, {}, IGenerateVideoFromActionsOptions>,
+//     res: Response
+//   ) => {
+//     try {
+//       validateBodyParams(req, res);
+
+//       // check if the server is at maximum generation capacity
+//       const sumOfProcesses = await getSumOfProcesses(["ffmpeg", "chrome", "python", "Python"]);
+//       if (sumOfProcesses > 30) {
+//         return res.status(503).json({
+//           error: "The server is currently at maximum CodeVideo generation power. Please wait a bit and try again later.",
+//         });
+//       }
+//       const videoOptions = req.body;
+//       const { videoBuffer } = await generateVideoFromActions(videoOptions);
+//       const videoUrl = await uploadFileToSpaces(videoBuffer, `${uuidv4()}.mp4`);
+//       return res.status(200).json({ url: videoUrl });
+//     } catch (error) {
+//       console.error("Error creating video:", error);
+//       return res.status(500).json({ error: "Internal Server Error" });
+//     }
+//   }
+// );
+
+app.post(
+  "/create-video-v3",
+  requireAuth(), // current video generation endpoint exposed on the studio
+  async (
+    req,
+    res
+  ) => {
+    const { userId } = getAuth(req);
+
+    // If user isn't authenticated, return a 401 error
+    if (userId === null) {
+      return res.status(401).json({ error: 'User not authenticated' })
+    }
+    const user = await clerkClient.users.getUser(userId)
+    const metadata: ICodeVideoUserMetadata = user.publicMetadata as any || {}
+
+    // if they don't have at least 10 tokens, return an error
+    if (metadata.tokens < 10) {
+      return res.status(400).json({ error: "You need at least 10 tokens to generate a video." });
+    }
+
+    // pay as you go customer (no plan name) have a limit of 250 actions
+    if (userIsPayAsYouGo(metadata) && req.body.actions.length > 250) {
+      return res.status(400).json({ error: "Only a maximum of 250 actions is allowed for pay-as-you-go customers. Please sign up for a premium subscription at https://studio.codevideo.io/ or see how to setup your own CodeVideo engine backend at https://github.com/codevideo/codevideo-api" });
+    }
+
+    const actions = req.body.actions;
+
+    // TODO: for video-v4 - we could expose the entire options object to the user (all that are available to CodeVideoIDE component)
+    await generateManifestFile(dirname, actions, userId);
+
+    // return success - user will be notified when video is ready
+    res.status(200).json({ message: "Video generation enqueued successfully" });
+  }
+)
+
+app.get(
+  "/get-manifest-v3",
+  async (
+    req: Request<{}, {}, { actions: Array<IAction> }>,
+    res: Response
+  ) => {
+    // returns the manifest.json file for the given uuid
+    const uuid = req.query.uuid;
+    console.log('return manifest for uuid', uuid)
+    try {
+      res.sendFile(path.join(dirname, "..", "tmp", "v3", "new", `${uuid}.json`));
+    }
+    catch (error) {
+      console.error("Error getting manifest:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+)
 
 // read in codeVideoAsciiArt.txt as a string
 const codeVideoAsciiArt = fs.readFileSync(
@@ -96,126 +155,34 @@ We're a software engineering company that Gets Stuff Done™. 🚀
   `);
 });
 
-// Endpoint for enqueuing video generation jobs
-app.post(
-  "/enqueue-video-job",
-  async (
-    req: Request<{}, {}, IGenerateVideoFromActionsOptions>,
-    res: Response
-  ) => {
-    try {
-      validateBodyParams(req, res);
-      const videoOptions = req.body;
-      const guidv4 = await enqueueVideoJob(videoOptions);
-      // add the job to the queue
-      jobsQueue.push({ guidv4, videoOptions });
-      res.status(200).json({
-        message: "Video generation enqueued successfully",
-        guidv4,
-        placeInLine: jobsQueue.length,
-      });
-    } catch (error) {
-      console.error("Error enqueuing action:", error);
-      res.status(500).json({ error: "Internal Server Error" });
-    }
-  }
-);
-
-// can use as long as codevideo doesn't get too popular - function runs concurrently well (up to 10 jobs tested)
-app.post(
-  "/create-video-immediately",
-  async (
-    req: Request<{}, {}, IGenerateVideoFromActionsOptions>,
-    res: Response
-  ) => {
-    try {
-      validateBodyParams(req, res);
-      
-      // check if the server is at maximum generation capacity
-      const sumOfProcesses = await getSumOfProcesses(["ffmpeg", "chrome", "python", "Python"]);
-      if (sumOfProcesses > 30) {
-        return res.status(503).json({
-          error: "The server is currently at maximum CodeVideo generation power. Please wait a bit and try again later.",
-        });
-      }
-      const videoOptions = req.body;
-      // again, just to note, this function runs currently "safely"
-      const videoBuffer = await generateVideoFromActions(videoOptions);
-      const videoUrl = await uploadFileToSpaces(videoBuffer, `${uuidv4()}.mp4`);
-      // return json response with url
-      res.status(200).json({ url: videoUrl });
-    } catch (error) {
-      console.error("Error creating video:", error);
-      res.status(500).json({ error: "Internal Server Error" });
-    }
-  }
-);
-
-const validateBodyParams = (
-  req: Request<{}, {}, IGenerateVideoFromActionsOptions>,
-  res: Response
-) => {
-  const { actions, language, textToSpeechOption } = req.body;
-
-  if (!actions) {
-    return res.status(400).json({ error: "actions are required" });
-  }
-
-  if (!language) {
-    return res.status(400).json({ error: "language is required" });
-  }
-
-  if (!textToSpeechOption) {
-    return res.status(400).json({ error: "textToSpeechOption is required" });
-  }
-
-  // if actions are more than 100, return that they need to sign for a premium liscense at https://codevideo.io/codevideo-cloud/
-  if (actions.length > 100) {
-    return res.status(400).json({
-      error:
-        "You have more than 100 actions. Please sign up for a premium subscription at https://codevideo.io/codevideo-cloud/ or see how to setup your own CodeVideo engine backend at https://github.com/codevideo/codevideo-api",
-    });
-  }
-
-  if (
-    (textToSpeechOption === "openai" || textToSpeechOption === "elevenlabs") &&
-    (!req.body.ttsApiKey || !req.body.ttsVoiceId)
-  ) {
-    return res.status(400).json({
-      error:
-        "If using 'openai' or 'elevenlabs' as the textToSpeechOption, you must provide both the 'ttsApiKey' and 'ttsVoiceId' parameters.",
-    });
-  }
-
-  if (os.platform() === "linux" && textToSpeechOption === "sayjs") {
-    return res.status(400).json({
-      error: "sayjs is not supported for file export on linux",
-    });
-  }
-};
-
 // The error handler must be registered before any other error middleware and after all controllers
-app.use(Sentry.Handlers.errorHandler());
+// app.use(Sentry.Handlers.errorHandler());
+Sentry.setupExpressErrorHandler(app);
+
+// clerk middleware
+app.use(clerkMiddleware())
 
 // Start the Express server
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`CodeVideo API is running on port ${port}`);
 });
 
 // if in dev mode, open to swagger page in chrome
-if (process.env.NODE_ENV === "development") {
-  open("http://localhost:7000/swagger");
-}
+// if (process.env.NODE_ENV === "development") {
+//   open("http://localhost:7000/swagger");
+// }
 
-// start cron to check for jobs in queue that runs every 1 second
-cron.schedule("* * * * * *", async () => {
-  if (jobsQueue.length > 0) {
-    const videoJob = jobsQueue.shift();
-    if (!videoJob) {
-      console.log("No video job found in queue");
-      return;
-    }
-    console.log("Running video job with GUID ", videoJob.guidv4);
-    await runVideoJob(videoJob);
-  }
-});
+// // start cron to check for jobs in queue that runs every 1 second
+// cron.schedule("* * * * * *", async () => {
+//   if (jobsQueue.length > 0) {
+//     const videoJob = jobsQueue.shift();
+//     if (!videoJob) {
+//       console.log("No video job found in queue");
+//       return;
+//     }
+//     console.log("Running video job with GUID ", videoJob.guidv4);
+//     await runVideoJob(videoJob);
+//   }
+// });
+
+

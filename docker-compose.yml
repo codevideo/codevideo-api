@@ -1,14 +1,38 @@
-version: '3.8'
-
 services:
-  codevideo-backend-engine:
+  codevideo-api:
     build:
       context: .
       dockerfile: Dockerfile
-    image: codevideo-backend-engine
-    container_name: codevideo-backend-engine
+    image: codevideo-api
+    container_name: codevideo-api
     ports:
       - "7000:7000"
+    restart: always
+    networks:
+      - codevideo-network
+    volumes:
+      - ./tmp/v3/:/usr/src/app/tmp/v3/
+  
+  go-video-dispatcher:
+    build:
+      context: ./go-video-dispatcher
+      dockerfile: Dockerfile
+    image: go-video-dispatcher
+    container_name: go-video-dispatcher
+    restart: always
+    networks:
+      - codevideo-network
+    volumes:
+      - ./tmp/v3/:/usr/src/app/tmp/v3/
+
+  gatsby-static-server:
+    build:
+      context: ./gatsby-static-server
+      dockerfile: Dockerfile
+    image: gatsby-static-server
+    container_name: gatsby-static-server
+    ports:
+      - "7001:7001"
     restart: always
     networks:
       - codevideo-network
@@ -26,7 +50,7 @@ services:
     networks:
       - codevideo-network
     depends_on:
-      - codevideo-backend-engine
+      - codevideo-api
     volumes:
       - ./nginx/conf/:/etc/nginx/conf.d/:ro
       - ./certbot/www/:/var/www/certbot/:ro

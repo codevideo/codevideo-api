@@ -1,0 +1,22 @@
+// eleven lab's can't handle reading of certain words very well
+export const customTransforms: Record<string, string> = {
+    "C#": "C sharp",
+    'areEqual': 'are equal',
+    ".NET": "dot net",
+    "C++": "C plus plus",
+    "_": " underscore ",
+    ".sh": "dot S H",
+    ".js": "dot J S",
+    ".ts": "dot T S",
+    ".css": "dot C S S",
+    ".html": "dot H T M L",
+    ".json": "dot J S O N",
+    ".yaml": "dot Y A M L",
+    ".yml": "dot Y M L",
+    ".xml": "dot X M L",
+    ".md": "dot M D",
+    ".txt": "dot T X T",
+    ".log": "dot L O G",
+    ".csv": "dot C S V",
+    ".go": "dot go",
+};

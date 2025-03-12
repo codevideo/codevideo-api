@@ -9,7 +9,8 @@
     "start": "tsc && node dist/index.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "type-check": "tsc --noEmit",
-    "test-upload": "tsc && node dist/test-upload.js"
+    "test-upload": "tsc && node dist/test-upload.js",
+    "clean-tmp": "rm -rf tmp/v3/new/* tmp/v3/done/* && rm -rf tmp/v3/error/* && rm -rf tmp/v3/success/* && rm -rf tmp/v3/video/*"
   },
   "repository": {
     "type": "git",
@@ -30,14 +31,15 @@
   "homepage": "https://github.com/codevideo/codevideo-api#readme",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.540.0",
-    "@fullstackcraftllc/codevideo-backend-engine": "^1.4.0",
-    "@fullstackcraftllc/codevideo-types": "^1.2.8",
-    "@sentry/node": "^7.108.0",
+    "@clerk/express": "^1.3.52",
+    "@fullstackcraftllc/codevideo-types": "^2.0.39",
+    "@sentry/node": "^9.5.0",
     "@sentry/profiling-node": "^7.108.0",
     "@supabase/supabase-js": "^2.39.8",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.1",
+    "isomorphic-fetch": "^3.0.0",
     "node-cron": "^3.0.3",
     "open": "^10.1.0",
     "swagger-jsdoc": "^6.2.8",
@@ -59,6 +61,6 @@
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.3"
+    "typescript": "^5.8.2"
   }
 }

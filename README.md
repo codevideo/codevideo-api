@@ -2,11 +2,65 @@
 
 The Node express API for CodeVideo video creation. Uses [`codevideo-backend-engine`](https://github.com/codevideo/codevideo-backend-engine) behind the scenes.
 
-## Usage from a client
+## Local Development
+
+Install dependencies:
+
+```shell
+npm install
+```
+
+Start the server:
+
+```shell
+npm start
+```
+
+This will start the server on `http://localhost:7000`.
+
+## Usage from a client - V3
+
+Simply call https://api.codevideo.io/create-video-v3 with a JSON body corresponding to an array of actions (`IAction` from `@fullstackcraftllc/codevide-types), and we handle the rest. You must be signed in to use this endpoint.
+
+The V3 endpoint has 3 parts: 
+
+1. the main express entry point, which first builds all the needed audio for the video
+2. `go-video-dispatcher`, which calls the `recordVideoV3.js` node script to record the
+2. the `recordVideoV3.js` script, which uses puppeteer to record the actual video
+
+## Where is V2?
+
+V2 was what I called the desktop driver for visual studio code and never build an API for that... maybe someday.
+
+## Usage from a client - Legacy
 
 Simply call https://api.codevideo.io/generate-video-immediately with a JSON body corresponding to the interface defined in [IGenerateVideoFromActionsOptions in codevideo-backend-engine](https://github.com/codevideo/codevideo-backend-engine/blob/main/src/interfaces/IGenerateVideoFromActionsOptions.ts)
 
-This is a first in first out endpoint, so expect this URL to get gunked up as CodeVideo gains traction (if ever, lol):
+This is a first-in-first-out endpoint, so expect this URL to get gunked up as CodeVideo gains traction (if ever, lol). Here is an example calling the API using bash:
+
+```shell
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+    "actions": [
+      {
+        "name": "author-speak-before",
+        "value": "Welcome to the amazing world of CodeVideo. Here'\''s some code!"
+      },
+      {
+        "name": "editor-type",
+        "value": "console.log('\''hello world!'\'');"
+      }
+    ],
+    "language": "javascript",
+    "textToSpeechOption": "elevenlabs",
+    "ttsApiKey": "YOUR_ELEVENLABS_API_KEY",
+    "ttsVoiceId": "YOUR_VOICE_ID"
+  }' \
+  https://api.codevideo.io/create-video-immediately
+```
+
+And using TypeScript:
 
 ```typescript
 const response = await fetch("https://api.codevideo.io/generate-video-immediately", {
@@ -25,47 +79,21 @@ const data = await response.json()
 console.log(data.url)
 ```
 
-## Run locally via Node
-
-Clone this repository:
-
-```shell
-git clone
-```
-
-Install dependencies:
-
-```shell
-npm install
-```
-
-Start the server:
-
-```shell
-npm start
-```
-
-If all goes well, you should see the following message:
-
-```shell
-Server running on port 7000
-```
-
 ## Run locally via Docker
 
-First, make sure you have a `.env` file wherever you are going to run this API. (See `.env.example` in the root of the project).
+First, make sure you have a `.env` file wherever you are going to run this API. (See `.env.example` in the root of the project and `.env.example` in the `go-video-dispatcher` folder).
 
 *Note: we know Docker stuff is a pain in the ass, so note here we are using the newer `docker compose` and `docker-compose` syntax.
 
-First ensure that the network is created:
+Build the Docker services:
 
 ```shell
-docker network create codevideo-network
+docker-compose build
 ```
-Then start up the API container and NGINX container:
+Then start up the various containers (which includes the Express server, go microservice, puppeteer runner, and static Gatsby site for recording) and NGINX container:
 
 ```shell
-docker compose build --no-cache && docker compose up -d && docker system prune -f
+docker-compose up -d
 ```
 
 ## Self Deployment (On Premise or Cloud)
@@ -74,7 +102,7 @@ docker compose build --no-cache && docker compose up -d && docker system prune -
 
 You'll need a S3 bucket or similar to store the videos. (I personally use Digital Ocean Spaces, but Spaces are compatible with the AWS SDK.)
 
-### Supabase
+<!-- ### Supabase
 
 You'll need a Supabase instance with a single `jobs` table:
 
@@ -84,9 +112,9 @@ create table jobs (
     status text default 'queued'
     created_at timestamptz default now()
 );
-```
+``` 
 
-After setting up the `jobs` table, you should be ready to run the API.
+After setting up the `jobs` table, you should be ready to run the API.-->
 
 ### Steps for SSL
 
@@ -106,6 +134,12 @@ If the dry run works, issue the certbot command without --dry-run:
 docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io
 ```
 
+Note that after renewing a cert you will need to restart the NGINX container:
+
+```shell
+docker restart <container-name-or-id-here>
+```
+
 Because the certbot image is mapped to folders in this repository, your certs will be in `certbot/conf/live/` folder.
 
 You can now uncomment the 443 block in your `.conf` file and restart the NGINX container:
@@ -115,6 +149,8 @@ docker compose down && docker compose up -d
 ```
 
 ### Renew SSL Certs
+
+Ensure you are in the root of this project (we need to be able to read `docker-compose.yml`) then run:
 
 ```shell
 docker compose run --rm certbot renew

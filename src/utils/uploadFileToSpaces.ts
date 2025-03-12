@@ -4,10 +4,8 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 
-// secret: 1OWtrUzie+D3zIoEfWVob0Xt1N63HDjvzViZV/j0l4I
-// access: DO00WQP2ZC96E8XL76JG
-
-// Function to upload video to DigitalOcean Spaces
+// TODO: create a new repo called codevideo-cloud and move this function there
+// Function to upload video to DigitalOcean Spaces - can also be used for uploading audio manifest
 export const uploadFileToSpaces = async (
   videoBuffer: Buffer,
   filename: string
@@ -17,8 +15,8 @@ export const uploadFileToSpaces = async (
     forcePathStyle: false,
     region: "sfo2",
     credentials: {
-      accessKeyId: "DO00WQP2ZC96E8XL76JG",
-      secretAccessKey: process.env.SPACES_SECRET || "",
+      accessKeyId: process.env.CODEVIDEO_SPACES_KEY_ID || "",
+      secretAccessKey: process.env.CODEVIDEO_SPACES_SECRET || "",
     },
   });
 

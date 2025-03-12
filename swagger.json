@@ -6,58 +6,16 @@
     "version": "1.0.0"
   },
   "paths": {
-    "/enqueue-video-job": {
+    "/create-video-v3": {
       "post": {
-        "summary": "Enqueue a video generation job",
-        "description": "Enqueue a video generation job with the specified actions",
+        "summary": "Create a video immediately (for testing purposes)",
+        "description": "Create a video immediately with the specified actions",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Video generation enqueued successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Video generation enqueued successfully"
-                    },
-                    "guidv4": {
-                      "type": "string",
-                      "example": "1a2b3c4d-5e6f-7g8h-9i10-jk1l2m3n4o5p"
-                    },
-                    "placeInLine": {
-                      "type": "integer",
-                      "example": 5
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Internal Server Error"
-                    }
-                  }
-                }
+                "$ref": "#/components/schemas/RequestBodyV3"
               }
             }
           }
@@ -117,6 +75,17 @@
   },
   "components": {
     "schemas": {
+      "RequestBodyV3": {
+        "type": "object",
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IAction"
+            }
+          }
+        }
+      },
       "RequestBody": {
         "type": "object",
         "properties": {
@@ -140,7 +109,7 @@
           "name": {
             "type": "string",
             "description": "The name of the action to perform",
-            "example": "speak-before"
+            "example": "author-speak-before"
           },
           "value": {
             "type": "string",
