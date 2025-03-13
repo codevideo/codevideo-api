@@ -3,6 +3,9 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 
+// define sleep helper function
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+
 async function recordVideoV3() {
     // if no uuid is provided, exit
     if (!process.argv[2]) {
@@ -63,16 +66,18 @@ async function recordVideoV3() {
             resolveFinalProgress();
         }
     });
+    console.log("added __onActionProgress");
 
     // Navigate to the puppeteer page.
     await page.setViewport({ width: 0, height: 0 });
-    await page.goto(`http://gatsby-static-server:7001/v3?uuid=${uuid}`);
+
+    const url = `http://gatsby-static-server:7001/v3?uuid=${uuid}`;
+    console.log(`Navigating to ${url}`);
+    await page.goto(url);
+    console.log("Page loaded");
 
     // Inject CSS to remove margins/padding so the video fills the viewport
     await page.addStyleTag({ content: `body { margin: 0; padding: 0; }` });
-
-    // Give the page some time to settle.
-    const sleep = ms => new Promise(res => setTimeout(res, ms));
 
     const videoConstraints = {
         mandatory: {
