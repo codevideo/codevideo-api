@@ -5,11 +5,11 @@ WORKDIR /app
 # Install git and build dependencies (python3, make, g++) needed by node-gyp
 RUN apk add --no-cache git python3 make g++
 
-# Clone the repository (consider pinning a commit for reproducibility)
+# Clone the repository UPDATE COMMIT AS NEEDED!!!!
 RUN git clone https://github.com/codevideo/codevideo-ide-react.git && \
     cd codevideo-ide-react && \
-    git checkout d06b499 && \
-    # replace index.tsx with v3.tsx - there is some issue with prefix paths, it always redirects to the index???
+    git checkout 385c5a52394a77f34a10591d7a70de8b057e7bf4 && \
+    # replace index.tsx with v3.tsx - there is some issue with prefix paths, it always redirects to the index page???
     cp example/src/pages/v3.tsx example/src/pages/index.tsx
 
 # Change working directory to the example folder (where the Gatsby site is)

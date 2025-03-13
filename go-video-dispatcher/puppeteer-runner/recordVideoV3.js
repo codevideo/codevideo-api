@@ -23,6 +23,7 @@ async function recordVideoV3() {
     const file = fs.createWriteStream(outputWebm);
 
     const browser = await launch({
+        dumpio: true,
         // macOS:
         // executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         // linux (docker):
@@ -40,11 +41,22 @@ async function recordVideoV3() {
             '--allow-file-access-from-files',
             '--enable-audio-service',
             '--mute-audio=false',
+            '--autoplay-policy=no-user-gesture-required',
             // '--enable-features=AudioServiceOutOfProcess'
         ]
     });
 
     const page = await browser.newPage();
+
+    // Log domcontentloaded
+    page.once('domcontentloaded', () => {
+        console.log('DOM content loaded');
+    });
+    
+    // Log load
+    page.once('load', () => {
+        console.log('Page fully loaded');
+    });
 
     // Log all browser console messages.
     page.on('console', msg => {
@@ -101,12 +113,14 @@ async function recordVideoV3() {
     stream.pipe(file);
     console.log("Recording started");
 
-    // Wait a moment before triggering interaction.
+    // Wait a moment before triggering start.
     await sleep(1000);
 
-    // Trigger interaction with a simulated click.
-    await page.click("body");
-    console.log("Simulated click triggered");
+    // Send signal to react component to start recording
+    console.log("Triggering recording start...");
+    await page.evaluate(() => {
+        window.__startRecording();
+    })
 
     // Wait until the client sends a final progress update.
     await finalProgressPromise;

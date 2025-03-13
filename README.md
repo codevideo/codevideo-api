@@ -90,10 +90,29 @@ Build the Docker services:
 ```shell
 docker-compose build
 ```
+
+on digital ocean droplet:
+
+```shell
+docker compose build
+```
+
 Then start up the various containers (which includes the Express server, go microservice, puppeteer runner, and static Gatsby site for recording) and NGINX container:
 
 ```shell
 docker-compose up -d
+```
+
+on digital ocean droplet:
+
+```shell
+docker compose up -d
+```
+
+Full restart on mac:
+
+```shell
+docker-compose build && npm run clean-tmp && docker-compose up -d
 ```
 
 ## Self Deployment (On Premise or Cloud)

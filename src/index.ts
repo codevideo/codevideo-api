@@ -15,6 +15,8 @@ import 'dotenv/config'
 const corsOptions = {
   origin: [
     "http://localhost:8000",
+    "http://localhost:8001",
+    "http://localhost:8002",
     "http://localhost:8888",
     "http://localhost:7001",
     "http://gatsby-static-server:7001",
@@ -123,7 +125,18 @@ app.get(
     const uuid = req.query.uuid;
     console.log('return manifest for uuid', uuid)
     try {
-      res.sendFile(path.join(dirname, "..", "tmp", "v3", "new", `${uuid}.json`));
+      // first try to find file in the new folder
+      let file = path.join(dirname, "..", "tmp", "v3", "new", `${uuid}.json`);
+      if (!fs.existsSync(file)) {
+        // if not found, try to find in the success folder
+        file = path.join(dirname, "..", "tmp", "v3", "success", `${uuid}.json`);
+        if (!fs.existsSync(file)) {
+          // return not found if not found in either folder
+          return res.status(404).json({ error: "Manifest not found" });
+        }
+      }
+
+      res.sendFile(file);
     }
     catch (error) {
       console.error("Error getting manifest:", error);
