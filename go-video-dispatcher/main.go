@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// Ensure required directories exist.
-	for _, dir := range []string{newFolder, errorFolder, successFolder} {
+	for _, dir := range []string{newFolder, errorFolder, successFolder, videoFolder} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			log.Fatalf("Error creating directory %s: %v", dir, err)
 		}
