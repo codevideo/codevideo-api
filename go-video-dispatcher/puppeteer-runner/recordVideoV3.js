@@ -36,23 +36,104 @@ async function recordVideoV3() {
             '--start-fullscreen',
             '--ozone-override-screen-size=1920,1080', // for linux
             '--no-sandbox', // to run as root on docker
-            // '--use-fake-ui-for-media-stream',
-            // '--use-fake-device-for-media-stream',
-            '--allow-file-access-from-files',
-            '--enable-audio-service',
-            '--mute-audio=false',
             '--autoplay-policy=no-user-gesture-required',
-            // '--enable-features=AudioServiceOutOfProcess'
-        ]
+            '--disable-web-security',
+            // '--enable-logging=stderr',  // Enable detailed logging
+            // '--v=1',                    // Increase verbosity level
+        ],
+        ignoreDefaultArgs: ['--mute-audio']
     });
 
     const page = await browser.newPage();
+
+
+
+
+
+
+
+
+    // In your page's JavaScript:
+    await page.evaluate(() => {
+        // Test direct fetch to the audio URL
+        async function testFetch(url) {
+            try {
+                const startTime = performance.now();
+                const response = await fetch(url, { method: 'HEAD' });
+                const endTime = performance.now();
+
+                console.log(`Fetch test for ${url}:`);
+                console.log(`  Status: ${response.status} ${response.statusText}`);
+                console.log(`  Time: ${Math.round(endTime - startTime)}ms`);
+                console.log(`  Headers:`, Object.fromEntries([...response.headers]));
+
+                return response.ok;
+            } catch (error) {
+                console.log(`Fetch error for ${url}:`, error.message);
+                return false;
+            }
+        }
+
+        // Capture audio element creation and add advanced debugging
+        const originalCreateElement = document.createElement;
+        document.createElement = function (tagName) {
+            const element = originalCreateElement.call(document, tagName);
+            if (tagName.toLowerCase() === 'audio') {
+                // Intercept src setting
+                const originalSetAttribute = element.setAttribute;
+                element.setAttribute = function (name, value) {
+                    if (name === 'src') {
+                        console.log(`Setting audio src to: ${value}`);
+                        // Test connectivity to the audio URL
+                        testFetch(value).then(success => {
+                            console.log(`Connectivity test for audio URL: ${success ? 'SUCCESS' : 'FAILED'}`);
+                        });
+                    }
+                    return originalSetAttribute.call(this, name, value);
+                };
+
+                // Detailed error reporting
+                element.addEventListener('error', (event) => {
+                    const error = element.error || {};
+                    console.log(`AUDIO ERROR DETAILS:`);
+                    console.log(`- Source: ${element.src}`);
+                    console.log(`- Error Code: ${error.code || 'N/A'}`);
+                    console.log(`- Error Message: ${error.message || 'None'}`);
+                    console.log(`- Network State: ${element.networkState}`);
+                    console.log(`- Ready State: ${element.readyState}`);
+
+                    // Try alternative fetch to check connectivity
+                    testFetch(element.src);
+                });
+            }
+            return element;
+        };
+    });
+
+    // Also add DNS resolution testing before navigating
+    await page.evaluate(() => {
+        // Check DNS resolution for the audio domain
+        const audioHost = 'coffee-app.sfo2.cdn.digitaloceanspaces.com';
+        console.log(`Testing DNS resolution for ${audioHost}...`);
+
+        const img = new Image();
+        const testUrl = `https://${audioHost}/test.pixel?t=${Date.now()}`;
+        img.onload = () => console.log(`DNS resolution success for ${audioHost}`);
+        img.onerror = () => console.log(`DNS resolution test failed for ${audioHost}`);
+        img.src = testUrl;
+    });
+
+
+
+
+
+
 
     // Log domcontentloaded
     page.once('domcontentloaded', () => {
         console.log('DOM content loaded');
     });
-    
+
     // Log load
     page.once('load', () => {
         console.log('Page fully loaded');
@@ -86,10 +167,16 @@ async function recordVideoV3() {
     const url = `http://gatsby-static-server:7001/v3?uuid=${uuid}`;
     console.log(`Navigating to ${url}`);
     await page.goto(url);
-    console.log("Page loaded");
+    console.log("Page navigated");
+
+    // click body to trigger interaction
+    await page.click("body");
+    console.log("Clicked body");
 
     // Inject CSS to remove margins/padding so the video fills the viewport
     await page.addStyleTag({ content: `body { margin: 0; padding: 0; }` });
+    console.log("Added style tag");
+
 
     const videoConstraints = {
         mandatory: {
