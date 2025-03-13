@@ -1,23 +1,27 @@
 import express, { Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
-import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import fs from "fs";
 import * as Sentry from "@sentry/node";
 import cors from "cors";
 import swaggerDocument from "../swagger.json" with { type: "json" };
-import { uploadFileToSpaces } from "./utils/uploadFileToSpaces.js";
-import { getSumOfProcesses } from "./utils/getSumOfProcesses.js";
 import { IAction, ICodeVideoUserMetadata } from "@fullstackcraftllc/codevideo-types";
 import { generateManifestFile } from "./utils/generateManifestFile.js";
-import { validateBodyParams } from "./utils/validateBodyParams.js";
 import { clerkClient, clerkMiddleware, getAuth, requireAuth } from "@clerk/express";
 import { userIsPayAsYouGo } from "./utils/userIsPayAsYouGo.js";
 import 'dotenv/config'
 
 // Define the CORS options
 const corsOptions = {
-  origin: ["http://localhost:8000", "http://localhost:8888", "http://localhost:7001", "http://gatsby-static-server:7001", "https://api.codevideo.io"],
+  origin: [
+    "http://localhost:8000",
+    "http://localhost:8888",
+    "http://localhost:7001",
+    "http://gatsby-static-server:7001",
+    "https://api.codevideo.io",
+    "https://staging.studio.codevideo.io",
+    "https://studio.codevideo.io"
+  ],
   methods: ["GET", "POST"],
 };
 
