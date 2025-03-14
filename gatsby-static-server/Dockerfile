@@ -8,7 +8,7 @@ RUN apk add --no-cache git python3 make g++
 # Clone the repository UPDATE COMMIT AS NEEDED!!!!
 RUN git clone https://github.com/codevideo/codevideo-ide-react.git && \
     cd codevideo-ide-react && \
-    git checkout 19a358b5d9e40295efbc367bca2c62d48e8109a1 && \
+    git checkout d26c2c8c033b65155c540f01b380be20bbf41e9a && \
     # replace index.tsx with v3.tsx - there is some issue with prefix paths, it always redirects to the index page???
     cp example/src/pages/v3.tsx example/src/pages/index.tsx
 

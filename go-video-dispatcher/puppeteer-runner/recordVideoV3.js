@@ -16,10 +16,13 @@ async function recordVideoV3() {
     // get  uuid from first argument
     const uuid = process.argv[2];
 
+    // if a third argument is provided, use it as the operating system
+    const OPERATING_SYSTEM = process.argv[3] || "linux";
+
     console.log("Starting recording for UUID: ", uuid);
 
-    const outputWebm = path.join(__dirname, `../tmp/v3/video/${uuid}.webm`);
-    const outputMp4 = path.join(__dirname, `../tmp/v3/video/${uuid}.mp4`);
+    const outputWebm = path.join(__dirname, `../../tmp/v3/video/${uuid}.webm`);
+    const outputMp4 = path.join(__dirname, `../../tmp/v3/video/${uuid}.mp4`);
     const file = fs.createWriteStream(outputWebm);
 
     const browser = await launch({
@@ -27,7 +30,7 @@ async function recordVideoV3() {
         // macOS:
         // executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         // linux (docker):
-        executablePath: "/usr/bin/chromium-browser",
+        executablePath: OPERATING_SYSTEM === "mac" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "/usr/bin/chromium-browser",
         headless: "new", // supports audio!
         // headless: false, // for debugging
         defaultViewport: { width: 1920, height: 1080 },
@@ -37,97 +40,13 @@ async function recordVideoV3() {
             '--ozone-override-screen-size=1920,1080', // for linux
             '--no-sandbox', // to run as root on docker
             '--autoplay-policy=no-user-gesture-required',
-            '--disable-web-security',
+            // '--disable-web-security',
             // '--enable-logging=stderr',  // Enable detailed logging
             // '--v=1',                    // Increase verbosity level
         ],
-        ignoreDefaultArgs: ['--mute-audio']
     });
 
     const page = await browser.newPage();
-
-
-
-
-
-
-
-
-    // In your page's JavaScript:
-    await page.evaluate(() => {
-        // Test direct fetch to the audio URL
-        async function testFetch(url) {
-            try {
-                const startTime = performance.now();
-                const response = await fetch(url, { method: 'HEAD' });
-                const endTime = performance.now();
-
-                console.log(`Fetch test for ${url}:`);
-                console.log(`  Status: ${response.status} ${response.statusText}`);
-                console.log(`  Time: ${Math.round(endTime - startTime)}ms`);
-                console.log(`  Headers:`, Object.fromEntries([...response.headers]));
-
-                return response.ok;
-            } catch (error) {
-                console.log(`Fetch error for ${url}:`, error.message);
-                return false;
-            }
-        }
-
-        // Capture audio element creation and add advanced debugging
-        const originalCreateElement = document.createElement;
-        document.createElement = function (tagName) {
-            const element = originalCreateElement.call(document, tagName);
-            if (tagName.toLowerCase() === 'audio') {
-                // Intercept src setting
-                const originalSetAttribute = element.setAttribute;
-                element.setAttribute = function (name, value) {
-                    if (name === 'src') {
-                        console.log(`Setting audio src to: ${value}`);
-                        // Test connectivity to the audio URL
-                        testFetch(value).then(success => {
-                            console.log(`Connectivity test for audio URL: ${success ? 'SUCCESS' : 'FAILED'}`);
-                        });
-                    }
-                    return originalSetAttribute.call(this, name, value);
-                };
-
-                // Detailed error reporting
-                element.addEventListener('error', (event) => {
-                    const error = element.error || {};
-                    console.log(`AUDIO ERROR DETAILS:`);
-                    console.log(`- Source: ${element.src}`);
-                    console.log(`- Error Code: ${error.code || 'N/A'}`);
-                    console.log(`- Error Message: ${error.message || 'None'}`);
-                    console.log(`- Network State: ${element.networkState}`);
-                    console.log(`- Ready State: ${element.readyState}`);
-
-                    // Try alternative fetch to check connectivity
-                    testFetch(element.src);
-                });
-            }
-            return element;
-        };
-    });
-
-    // Also add DNS resolution testing before navigating
-    await page.evaluate(() => {
-        // Check DNS resolution for the audio domain
-        const audioHost = 'coffee-app.sfo2.cdn.digitaloceanspaces.com';
-        console.log(`Testing DNS resolution for ${audioHost}...`);
-
-        const img = new Image();
-        const testUrl = `https://${audioHost}/test.pixel?t=${Date.now()}`;
-        img.onload = () => console.log(`DNS resolution success for ${audioHost}`);
-        img.onerror = () => console.log(`DNS resolution test failed for ${audioHost}`);
-        img.src = testUrl;
-    });
-
-
-
-
-
-
 
     // Log domcontentloaded
     page.once('domcontentloaded', () => {
@@ -164,7 +83,7 @@ async function recordVideoV3() {
     // Navigate to the puppeteer page.
     await page.setViewport({ width: 0, height: 0 });
 
-    const url = `http://gatsby-static-server:7001/v3?uuid=${uuid}`;
+    const url = `http://localhost:7001/v3?uuid=${uuid}`;
     console.log(`Navigating to ${url}`);
     await page.goto(url);
     console.log("Page navigated");
@@ -176,7 +95,6 @@ async function recordVideoV3() {
     // Inject CSS to remove margins/padding so the video fills the viewport
     await page.addStyleTag({ content: `body { margin: 0; padding: 0; }` });
     console.log("Added style tag");
-
 
     const videoConstraints = {
         mandatory: {

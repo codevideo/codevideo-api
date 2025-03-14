@@ -12,18 +12,19 @@ services:
       - codevideo-network
     volumes:
       - ./tmp/v3/:/usr/src/app/tmp/v3/
-  
-  go-video-dispatcher:
-    build:
-      context: ./go-video-dispatcher
-      dockerfile: Dockerfile
-    image: go-video-dispatcher
-    container_name: go-video-dispatcher
-    restart: always
-    networks:
-      - codevideo-network
-    volumes:
-      - ./tmp/v3/:/usr/src/app/tmp/v3/
+
+  # major challenges with sound here, for now we will run non-dockerized on host machine(s)
+  # go-video-dispatcher:
+  #   build:
+  #     context: ./go-video-dispatcher
+  #     dockerfile: Dockerfile
+  #   image: go-video-dispatcher
+  #   container_name: go-video-dispatcher
+  #   restart: always
+  #   networks:
+  #     - codevideo-network
+  #   volumes:
+  #     - ./tmp/v3/:/usr/src/app/tmp/v3/
 
   gatsby-static-server:
     build:

@@ -2,3 +2,9 @@ node_modules
 dist
 .env
 tmp
+
+# go binary
+go-video-dispatcher/go-video-dispatcher
+
+# nohup.out
+nohup.out

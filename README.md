@@ -112,7 +112,19 @@ docker compose up -d
 Full restart on mac:
 
 ```shell
-docker-compose build && npm run clean-tmp && docker-compose up -d
+docker-compose build && docker-compose up -d
+```
+
+Due to issues with headless chromium playing audio, we run the go dispatcher locally (which also calls the puppeteer script). To run that:
+
+First install dependencies for the puppeteer part:
+
+```shell
+cd go-video-dispatcher/puppeteer-runner
+npm install
+cd ..
+go build
+nohup ./go-video-dispatcher &
 ```
 
 ## Self Deployment (On Premise or Cloud)

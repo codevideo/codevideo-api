@@ -23,10 +23,10 @@ import (
 )
 
 const (
-	newFolder       = "tmp/v3/new"
-	errorFolder     = "tmp/v3/error"
-	successFolder   = "tmp/v3/success"
-	videoFolder     = "tmp/v3/video"
+	newFolder       = "../tmp/v3/new"
+	errorFolder     = "../tmp/v3/error"
+	successFolder   = "../tmp/v3/success"
+	videoFolder     = "../tmp/v3/video"
 	nodeScriptName  = "puppeteer-runner/recordVideoV3.js"
 	decrementAmount = 10
 )
@@ -80,7 +80,13 @@ func main() {
 	// 	return nil
 	// })
 
-	log.Println("Watching for new manifest files in", newFolder)
+	// get absolute path of 'new' folder
+	absPath, err := filepath.Abs(newFolder)
+	if err != nil {
+		log.Fatalf("Error getting absolute path of %s: %v", newFolder, err)
+	}
+
+	log.Println("Watching for new manifest files in", absPath)
 
 	// Listen for filesystem events.
 	for {
@@ -165,8 +171,11 @@ func processJob(manifestPath string) {
 	}
 	log.Printf("Processing job: %s (RAM usage is at %s)", uuid, ramUsage)
 
-	// Call the Puppeteer script using node.
-	cmd := exec.Command("node", nodeScriptName, uuid)
+	operatingSystem := os.Getenv("OPERATING_SYSTEM")
+
+	// Call the Puppeteer script using node with the uuid and operating system as arguments.
+	cmd := exec.Command("node", nodeScriptName, uuid, operatingSystem)
+
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Printf("Error obtaining stdout pipe: %v", err)
@@ -220,12 +229,14 @@ func processJob(manifestPath string) {
 		return
 	}
 
+	log.Printf("Uploading mp4 for job %s", uuid)
 	mp4Url, err := cloud.UploadFileToSpaces(context.Background(), mp4Bytes, uuid+".mp4")
 	if err != nil {
 		log.Printf("Failed to upload file for job %s: %v", uuid, err)
 		utils.AddErrorToManifest(manifestPath, err.Error())
 		return
 	}
+	log.Printf("Uploaded mp4 for job %s to %s", uuid, mp4Url)
 
 	// use the clerk userID to get the email address of the user
 	apiKey := os.Getenv("CLERK_SECRET_KEY")
