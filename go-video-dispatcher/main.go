@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
+	slack "github.com/codevideo/go-utils/slack"
 	"github.com/codevideo/go-video-dispatcher/cloud"
 	"github.com/codevideo/go-video-dispatcher/mail"
 	"github.com/codevideo/go-video-dispatcher/types"
@@ -169,7 +171,9 @@ func processJob(manifestPath string) {
 	if err != nil {
 		log.Printf("Failed to get RAM usage: %v", err)
 	}
-	log.Printf("Processing job: %s (RAM usage is at %s)", uuid, ramUsage)
+	message := fmt.Sprintf("Processing video job: %s (Job has %d actions; RAM usage is at %s)", uuid, len(manifest.Actions), ramUsage)
+	log.Print(message)
+	slack.SendSlackMessage(message)
 
 	operatingSystem := os.Getenv("OPERATING_SYSTEM")
 

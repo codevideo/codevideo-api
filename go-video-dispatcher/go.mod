@@ -37,6 +37,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.9
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.78.2
 	github.com/clerk/clerk-sdk-go/v2 v2.2.0
+	github.com/codevideo/go-utils v0.0.2
 	github.com/joho/godotenv v1.5.1
 	github.com/mailjet/mailjet-apiv3-go v0.0.0-20201009050126-c24bc15a9394
 	github.com/shirou/gopsutil/v3 v3.24.5
