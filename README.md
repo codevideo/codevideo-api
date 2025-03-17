@@ -115,6 +115,19 @@ Full restart on mac:
 docker-compose build && docker-compose up -d
 ```
 
+Full restart on linux (staging):
+
+```shell
+docker compose build && ENV=staging docker compose up -d
+```
+
+Full restart on linux (production):
+
+```shell
+docker compose build && ENV=prod docker compose up -d
+```
+
+
 Due to issues with headless chromium playing audio, we run the go dispatcher locally (which also calls the puppeteer script). To run that:
 
 First install dependencies for the puppeteer part:

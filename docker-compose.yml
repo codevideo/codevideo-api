@@ -41,6 +41,8 @@ services:
   nginx:
     build:
       context: ./nginx
+      args:
+        ENVIRONMENT: ${ENV:-prod}
       dockerfile: Dockerfile
     image: nginx:latest
     container_name: nginx

@@ -6,6 +6,14 @@ const { exec } = require("child_process");
 // define sleep helper function
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 
+// standard 1080p resolution
+// const width = 1920;
+// const height = 1080;
+
+// standard 4K resolution
+const width = 3840;
+const height = 2160;
+
 async function recordVideoV3() {
     // if no uuid is provided, exit
     if (!process.argv[2]) {
@@ -25,6 +33,8 @@ async function recordVideoV3() {
     const outputMp4 = path.join(__dirname, `../../tmp/v3/video/${uuid}.mp4`);
     const file = fs.createWriteStream(outputWebm);
 
+    console.log("Launching browser with resolution:", width, "x", height, width === 3840 ? " (4K)" : " (1080p)");
+
     const browser = await launch({
         dumpio: true,
         // macOS:
@@ -33,11 +43,11 @@ async function recordVideoV3() {
         executablePath: OPERATING_SYSTEM === "mac" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "/usr/bin/chromium-browser",
         headless: "new", // supports audio!
         // headless: false, // for debugging
-        defaultViewport: { width: 1920, height: 1080 },
+        defaultViewport: { width, height },
         args: [
-            '--window-size=1920,1080',
+            `--window-size=${width},${height}`,
             '--start-fullscreen',
-            '--ozone-override-screen-size=1920,1080', // for linux
+            `--ozone-override-screen-size=${width},${height}`, // for linux
             '--no-sandbox', // to run as root on docker
             '--autoplay-policy=no-user-gesture-required',
             // '--disable-web-security',
@@ -98,10 +108,10 @@ async function recordVideoV3() {
 
     const videoConstraints = {
         mandatory: {
-            minWidth: 1920,
-            minHeight: 1080,
-            maxWidth: 1920,
-            maxHeight: 1080,
+            minWidth: width,
+            minHeight: height,
+            maxWidth: width,
+            maxHeight: height,
         },
     };
 
@@ -111,7 +121,7 @@ async function recordVideoV3() {
         video: true,
         mimeType: "video/webm", // WebM is well-supported for high-quality web video
         audioBitsPerSecond: 384000, // 384 kbps for high-quality stereo audio
-        videoBitsPerSecond: 20000000, // 20 Mbps (20,000 kbps) for high-quality 1080p video
+        videoBitsPerSecond: width === 3840 ?  80000000: 20000000, // 80 Mpbs for 4K; 20 Mbps (20,000 kbps) for high-quality 1080p video
         frameSize: 16, // approx 60 FPS
         videoConstraints
     });
