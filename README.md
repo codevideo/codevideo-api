@@ -87,11 +87,13 @@ First, make sure you have a `.env` file wherever you are going to run this API. 
 
 Build the Docker services:
 
+on mac:
+
 ```shell
 docker-compose build
 ```
 
-on digital ocean droplet:
+on linux:
 
 ```shell
 docker compose build
@@ -103,7 +105,7 @@ Then start up the various containers (which includes the Express server, go micr
 docker-compose up -d
 ```
 
-on digital ocean droplet:
+on linux:
 
 ```shell
 docker compose up -d
@@ -115,16 +117,11 @@ Full restart on mac:
 docker-compose build && docker-compose up -d
 ```
 
-Full restart on linux (staging):
+
+Full restart on linux
 
 ```shell
-docker compose build && ENV=staging docker compose up -d
-```
-
-Full restart on linux (production):
-
-```shell
-docker compose build && ENV=prod docker compose up -d
+docker compose build && docker compose up -d
 ```
 
 
@@ -144,7 +141,7 @@ nohup ./go-video-dispatcher &
 
 ### Storage
 
-You'll need a S3 bucket or similar to store the videos. (I personally use Digital Ocean Spaces, but Spaces are compatible with the AWS SDK.)
+You'll need a S3 bucket or similar to store the videos.
 
 <!-- ### Supabase
 

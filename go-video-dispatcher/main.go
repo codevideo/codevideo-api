@@ -25,12 +25,13 @@ import (
 )
 
 const (
-	newFolder       = "../tmp/v3/new"
-	errorFolder     = "../tmp/v3/error"
-	successFolder   = "../tmp/v3/success"
-	videoFolder     = "../tmp/v3/video"
-	nodeScriptName  = "puppeteer-runner/recordVideoV3.js"
-	decrementAmount = 10
+	newFolder            = "../tmp/v3/new"
+	errorFolder          = "../tmp/v3/error"
+	successFolder        = "../tmp/v3/success"
+	videoFolder          = "../tmp/v3/video"
+	nodeScriptName       = "puppeteer-runner/recordVideoV3.js"
+	tokenDecrementAmount = 10
+	maxConcurrentJobs    = 2 // because we only have an 8 GB server which serves both staging and prod requests, keep at 2 each
 )
 
 var debounceMu sync.Mutex
@@ -64,8 +65,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// semaphore channel to limit concurrency to 10 jobs.
-	semaphore := make(chan struct{}, 10)
+	// semaphore channel to limit concurrency to maxConcurrentJobs jobs.
+	semaphore := make(chan struct{}, maxConcurrentJobs)
 
 	// Optionally, you could do an initial scan of the folder for any existing JSON files in the 'new' folder.
 	// filepath.Walk(newFolder, func(path string, info os.FileInfo, err error) error {
@@ -224,7 +225,7 @@ func processJob(manifestPath string) {
 		// Optionally capture additional output if needed.
 	}
 
-	// If the Puppeteer script succeeded, read and upload the mp4 to DigitalOcean Spaces.
+	// If the Puppeteer script succeeded, read and upload the mp4 to S3.
 	mp4Path := filepath.Join(videoFolder, uuid+".mp4")
 	mp4Bytes, err := os.ReadFile(mp4Path)
 	if err != nil {
@@ -234,7 +235,7 @@ func processJob(manifestPath string) {
 	}
 
 	log.Printf("Uploading mp4 for job %s", uuid)
-	mp4Url, err := cloud.UploadFileToSpaces(context.Background(), mp4Bytes, uuid+".mp4")
+	mp4Url, err := cloud.UploadFileToS3(context.Background(), mp4Bytes, uuid+".mp4")
 	if err != nil {
 		log.Printf("Failed to upload file for job %s: %v", uuid, err)
 		utils.AddErrorToManifest(manifestPath, err.Error())
@@ -288,7 +289,7 @@ func processJob(manifestPath string) {
 		}
 	}
 
-	newTokens := currentTokens - decrementAmount
+	newTokens := currentTokens - tokenDecrementAmount
 	metadata, _ := json.Marshal(map[string]interface{}{"tokens": newTokens})
 	params := user.UpdateMetadataParams{
 		PublicMetadata: (*json.RawMessage)(&metadata),

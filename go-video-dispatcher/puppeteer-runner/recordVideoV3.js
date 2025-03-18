@@ -7,12 +7,12 @@ const { exec } = require("child_process");
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 
 // standard 1080p resolution
-// const width = 1920;
-// const height = 1080;
+const width = 1920;
+const height = 1080;
 
-// standard 4K resolution
-const width = 3840;
-const height = 2160;
+// standard 4K resolution (could be a nice premium feature)
+// const width = 3840;
+// const height = 2160;
 
 async function recordVideoV3() {
     // if no uuid is provided, exit

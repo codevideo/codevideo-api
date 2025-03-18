@@ -46,7 +46,7 @@
                   "properties": {
                     "url": {
                       "type": "string",
-                      "example": "https://coffee-app.sfo2.cdn.digitaloceanspaces.com/codevideo/47a2ad38-3364-4031-972a-2d7705de2d4a.mp4"
+                      "example": "https://fullstackcraft.s3.us-east-1.amazonaws.com/codevideo/47a2ad38-3364-4031-972a-2d7705de2d4a.mp4"
                     }
                   }
                 }

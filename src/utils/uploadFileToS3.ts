@@ -1,30 +1,26 @@
 import {
-  ObjectCannedACL,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 
 // TODO: create a new repo called codevideo-cloud and move this function there
-// Function to upload video to DigitalOcean Spaces - can also be used for uploading audio manifest
-export const uploadFileToSpaces = async (
+// Function to upload video to S3 - can also be used for uploading audio manifest
+export const uploadFileToS3 = async (
   videoBuffer: Buffer,
   filename: string
 ): Promise<string> => {
   const s3Client = new S3Client({
-    endpoint: "https://sfo2.digitaloceanspaces.com",
-    forcePathStyle: false,
-    region: "sfo2",
+    region: "us-east-1",
     credentials: {
-      accessKeyId: process.env.CODEVIDEO_SPACES_KEY_ID || "",
-      secretAccessKey: process.env.CODEVIDEO_SPACES_SECRET || "",
+      accessKeyId: process.env.CODEVIDEO_S3_KEY_ID || "",
+      secretAccessKey: process.env.CODEVIDEO_S3_SECRET || "",
     },
   });
 
   const params = {
-    Bucket: "coffee-app",
+    Bucket: "fullstackcraft",
     Key: `codevideo/${filename}`,
     Body: videoBuffer,
-    ACL: ObjectCannedACL.public_read,
   };
 
   try {
@@ -33,7 +29,7 @@ export const uploadFileToSpaces = async (
       "Successfully uploaded object: " + params.Bucket + "/" + params.Key
     );
     // return URL to the uploaded video
-    return `https://${params.Bucket}.sfo2.cdn.digitaloceanspaces.com/${params.Key}`;
+    return `https://fullstackcraft.s3.us-east-1.amazonaws.com/${params.Key}`;
   } catch (err) {
     throw new Error(`Error uploading object: ${err}`);
   }

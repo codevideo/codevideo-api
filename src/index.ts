@@ -183,23 +183,3 @@ app.use(clerkMiddleware())
 app.listen(port, () => {
   console.log(`CodeVideo API is running on port ${port}`);
 });
-
-// if in dev mode, open to swagger page in chrome
-// if (process.env.NODE_ENV === "development") {
-//   open("http://localhost:7000/swagger");
-// }
-
-// // start cron to check for jobs in queue that runs every 1 second
-// cron.schedule("* * * * * *", async () => {
-//   if (jobsQueue.length > 0) {
-//     const videoJob = jobsQueue.shift();
-//     if (!videoJob) {
-//       console.log("No video job found in queue");
-//       return;
-//     }
-//     console.log("Running video job with GUID ", videoJob.guidv4);
-//     await runVideoJob(videoJob);
-//   }
-// });
-
-
