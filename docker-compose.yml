@@ -1,4 +1,19 @@
 services:
+  staging-codevideo-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: staging-codevideo-api
+    container_name: staging-codevideo-api
+    ports:
+      - "6999:6999"
+    restart: always
+    networks:
+      - codevideo-network
+    volumes:
+      - ./tmp/v3/:/usr/src/app/tmp/v3/
+    env_file: .env.staging
+
   codevideo-api:
     build:
       context: .
@@ -12,6 +27,7 @@ services:
       - codevideo-network
     volumes:
       - ./tmp/v3/:/usr/src/app/tmp/v3/
+    env_file: .env
 
   # major challenges with sound here, for now we will run non-dockerized on host machine(s)
   # go-video-dispatcher:

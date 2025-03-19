@@ -63,8 +63,8 @@ RUN npm install --only=production
 #     && rm -rf /var/lib/apt/lists/*
 # # END CHROMIUM INSTALLATION
 
-# Expose port 7000
-EXPOSE 7000
+# Expose the port number defined in the env
+EXPOSE $PORT
 
 # Set NODE_OPTIONS for the runtime container
 ENV NODE_OPTIONS="--import ./instrument.mjs"

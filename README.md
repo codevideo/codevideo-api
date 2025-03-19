@@ -87,14 +87,6 @@ First, make sure you have a `.env` file wherever you are going to run this API. 
 
 Build the Docker services:
 
-on mac:
-
-```shell
-docker-compose build
-```
-
-on linux:
-
 ```shell
 docker compose build
 ```
@@ -102,28 +94,14 @@ docker compose build
 Then start up the various containers (which includes the Express server, go microservice, puppeteer runner, and static Gatsby site for recording) and NGINX container:
 
 ```shell
-docker-compose up -d
-```
-
-on linux:
-
-```shell
 docker compose up -d
 ```
 
-Full restart on mac:
-
-```shell
-docker-compose build && docker-compose up -d
-```
-
-
-Full restart on linux
+Full restart:
 
 ```shell
 docker compose build && docker compose up -d
 ```
-
 
 Due to issues with headless chromium playing audio, we run the go dispatcher locally (which also calls the puppeteer script). To run that:
 
@@ -169,10 +147,22 @@ To dry run (this example for api.codevideo.io)
 docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io --dry-run
 ```
 
+or for staging.api.codevideo.io
+
+```shell
+docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d staging.api.codevideo.io --dry-run
+```
+
 If the dry run works, issue the certbot command without --dry-run:
 
 ```shell
 docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io
+```
+
+or for staging.api.codevideo.io
+
+```shell
+docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d staging.api.codevideo.io
 ```
 
 Note that after renewing a cert you will need to restart the NGINX container:

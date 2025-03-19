@@ -30,7 +30,7 @@ const corsOptions = {
 // Initialize Express app
 const app = express();
 
-const port = process.env.PORT || 7000;
+const port = process.env.PORT;
 
 // The request handler must be the first middleware on the app
 // app.use(Sentry.Handlers.requestHandler());
@@ -163,7 +163,7 @@ app.get("/", (req: Request, res: Response) => {
   <pre>
 ${codeVideoAsciiArt}
 
-CodeVideo API v${version}
+CodeVideo ${process.env.ENVIRONMENT} API v${version}
 Create software videos with the click of a button!
 Copyright © ${year} Full Stack Craft
 We're not a startup.
