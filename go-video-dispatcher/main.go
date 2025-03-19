@@ -165,6 +165,7 @@ func processJob(manifestPath string) {
 		utils.AddErrorToManifest(manifestPath, err.Error())
 		return
 	}
+	environment := manifest.Environment
 	uuid := manifest.UUID
 	clerkUserId := manifest.UserID
 
@@ -244,7 +245,12 @@ func processJob(manifestPath string) {
 	log.Printf("Uploaded mp4 for job %s to %s", uuid, mp4Url)
 
 	// use the clerk userID to get the email address of the user
+	// be sure to initialize the clerk client with the correct API key according to whether the environment of the job is staging or prod
 	apiKey := os.Getenv("CLERK_SECRET_KEY")
+	if environment == "staging" {
+		apiKey = os.Getenv("CLERK_SECRET_KEY_STAGING")
+	}
+
 	if apiKey == "" {
 		log.Println("CLERK_SECRET_KEY not set")
 	}

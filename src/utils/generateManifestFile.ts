@@ -12,6 +12,7 @@ export const generateManifestFile = async (dirname: string, actions: Array<IActi
 
     // create manifest
     const manifest: ICodeVideoManifest = {
+        environment: process.env.ENVIRONMENT || "production",
         userId,
         uuid,
         actions,

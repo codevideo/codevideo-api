@@ -1,11 +1,12 @@
 package types
 
 type CodeVideoManifest struct {
-	UserID     string      `json:"userId"`
-	UUID       string      `json:"uuid"`
-	Actions    []Action    `json:"actions"`
-	AudioItems []AudioItem `json:"audioItems"`
-	Error      string      `json:"error,omitempty"`
+	Environment string      `json:"environment"`
+	UserID      string      `json:"userId"`
+	UUID        string      `json:"uuid"`
+	Actions     []Action    `json:"actions"`
+	AudioItems  []AudioItem `json:"audioItems"`
+	Error       string      `json:"error,omitempty"`
 }
 
 type Action struct {
