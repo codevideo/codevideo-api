@@ -7,6 +7,7 @@ import cors from "cors";
 import swaggerDocument from "../swagger.json" with { type: "json" };
 import { ICodeVideoUserMetadata } from "@fullstackcraftllc/codevideo-types";
 import { generateManifestFile } from "./utils/generateManifestFile.js";
+import { resolveProjectActions } from "./utils/resolveProjectActions.js";
 import { clerkClient, clerkMiddleware, getAuth, requireAuth } from "@clerk/express";
 import { userIsPayAsYouGo } from "./utils/userIsPayAsYouGo.js";
 import 'dotenv/config'
@@ -50,35 +51,6 @@ app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Get the directory name of the current module file
 const dirname = path.dirname(new URL(import.meta.url).pathname);
-
-// TODO: reactivate once the whole dependency mess with docker is fixed
-// can use as long as codevideo doesn't get too popular - function runs concurrently well (up to 10 jobs tested)
-// app.post(
-//   "/create-video-immediately",
-//   async (
-//     req: Request<{}, {}, IGenerateVideoFromActionsOptions>,
-//     res: Response
-//   ) => {
-//     try {
-//       validateBodyParams(req, res);
-
-//       // check if the server is at maximum generation capacity
-//       const sumOfProcesses = await getSumOfProcesses(["ffmpeg", "chrome", "python", "Python"]);
-//       if (sumOfProcesses > 30) {
-//         return res.status(503).json({
-//           error: "The server is currently at maximum CodeVideo generation power. Please wait a bit and try again later.",
-//         });
-//       }
-//       const videoOptions = req.body;
-//       const { videoBuffer } = await generateVideoFromActions(videoOptions);
-//       const videoUrl = await uploadFileToSpaces(videoBuffer, `${uuidv4()}.mp4`);
-//       return res.status(200).json({ url: videoUrl });
-//     } catch (error) {
-//       console.error("Error creating video:", error);
-//       return res.status(500).json({ error: "Internal Server Error" });
-//     }
-//   }
-// );
 
 app.post(
   "/spellcheck",
@@ -145,14 +117,19 @@ app.post(
       return res.status(400).json({ error: "You need at least 10 tokens to generate a video." });
     }
 
+    // dual-accept: legacy { actions } or the newer { project: IAction[] | ILesson | ICourse }
+    const actions = resolveProjectActions(req.body);
+
+    // reject empty / unrecognized payloads up front
+    if (actions.length === 0) {
+      return res.status(400).json({ error: "No actions found in request. Send either { actions: IAction[] } or { project: IAction[] | ILesson | ICourse }." });
+    }
+
     // pay as you go customer (no plan name) have a limit of 250 actions
-    if (userIsPayAsYouGo(metadata) && req.body.actions.length > 250) {
+    if (userIsPayAsYouGo(metadata) && actions.length > 250) {
       return res.status(400).json({ error: "Only a maximum of 250 actions is allowed for pay-as-you-go customers. Please sign up for a premium subscription at https://studio.codevideo.io/ or see how to setup your own CodeVideo engine backend at https://github.com/codevideo/codevideo-api" });
     }
 
-    const actions = req.body.actions;
-
-    // TODO: for video-v4 - we could expose the entire options object to the user (all that are available to CodeVideoIDE component)
     // this created manifest is picked up by the go based CLI tool running in serve mode.
     await generateManifestFile(dirname, actions, userId);
 

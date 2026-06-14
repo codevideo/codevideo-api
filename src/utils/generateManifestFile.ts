@@ -10,12 +10,17 @@ export const generateManifestFile = async (dirname: string, actions: Array<IActi
     // generate mp3s for each action
     const audioItems = await generateAudioItems(actions);
 
-    // create manifest
+    // create manifest. We write an actions-based manifest (the render path the
+    // CLI + example v3 page already consume): a course/lesson payload is
+    // flattened to actions upstream in resolveProjectActions. currentLessonIndex
+    // is required by the type but inert for an actions stream (the component
+    // only uses it to pick a lesson out of a course), so 0 is a safe default.
     const manifest: ICodeVideoManifest = {
         environment: process.env.ENVIRONMENT || "production",
         userId,
         uuid,
         actions,
+        currentLessonIndex: 0,
         audioItems
     }
 
