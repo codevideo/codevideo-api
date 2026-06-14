@@ -103,37 +103,22 @@ Full restart:
 docker compose build && docker compose up -d
 ```
 
-Due to issues with headless chromium playing audio, we run the go dispatcher locally (which also calls the puppeteer script). To run that:
-
-First install dependencies for the puppeteer part:
+You also need to have an instance of the [`codevideo-cli`](https://github.com/codevideo/codevideo-cli) running in `serve` mode:
 
 ```shell
-cd go-video-dispatcher/puppeteer-runner
-npm install
-cd ..
-go build
-nohup ./go-video-dispatcher &
+git clone https://github.com/codevideo/codevideo-cli
+cp .env.example .env
+go build -o codevideo
+nohup ./codevideo -m serve &
 ```
+
+a docker image is coming for this shortly.
 
 ## Self Deployment (On Premise or Cloud)
 
 ### Storage
 
-You'll need a S3 bucket or similar to store the videos.
-
-<!-- ### Supabase
-
-You'll need a Supabase instance with a single `jobs` table:
-
-```sql
-create table jobs (
-    id uuid primary key,
-    status text default 'queued'
-    created_at timestamptz default now()
-);
-``` 
-
-After setting up the `jobs` table, you should be ready to run the API.-->
+You'll need a S3 bucket or similar to store the videos, note the env variables `CODEVIDEO_S3_KEY_ID` and `CODEVIDEO_S3_SECRET` should correspond to your S3 Bucket's credentials.
 
 ### Steps for SSL
 

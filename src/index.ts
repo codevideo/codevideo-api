@@ -5,11 +5,12 @@ import fs from "fs";
 import * as Sentry from "@sentry/node";
 import cors from "cors";
 import swaggerDocument from "../swagger.json" with { type: "json" };
-import { IAction, ICodeVideoUserMetadata } from "@fullstackcraftllc/codevideo-types";
+import { ICodeVideoUserMetadata } from "@fullstackcraftllc/codevideo-types";
 import { generateManifestFile } from "./utils/generateManifestFile.js";
 import { clerkClient, clerkMiddleware, getAuth, requireAuth } from "@clerk/express";
 import { userIsPayAsYouGo } from "./utils/userIsPayAsYouGo.js";
 import 'dotenv/config'
+import { LanguageToolResponse } from "./languagetooltypes/languagetooltypes.js";
 
 // Define the CORS options
 const corsOptions = {
@@ -80,6 +81,50 @@ const dirname = path.dirname(new URL(import.meta.url).pathname);
 // );
 
 app.post(
+  "/spellcheck",
+  requireAuth(), // spell check requires authentication
+  async (
+    req,
+    res
+  ) => {
+    const { userId } = getAuth(req);
+
+    // If user isn't authenticated, return a 401 error
+    if (userId === null) {
+      return res.status(401).json({ error: 'User not authenticated' })
+    }
+
+    // get locale and text from body
+    const { locale, text } = req.body;
+    
+    // forward the request on to languagetool container running at localhost:8010
+    try {
+      const response = await fetch('http://localhost:8010/v2/check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `language=${locale}&text=${text}`
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = (await response.json()) as LanguageToolResponse;
+      const matches = data.matches
+
+      return res.status(200).json({
+        matches
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+)
+
+app.post(
   "/create-video-v3",
   requireAuth(), // current video generation endpoint exposed on the studio
   async (
@@ -108,40 +153,11 @@ app.post(
     const actions = req.body.actions;
 
     // TODO: for video-v4 - we could expose the entire options object to the user (all that are available to CodeVideoIDE component)
+    // this created manifest is picked up by the go based CLI tool running in serve mode.
     await generateManifestFile(dirname, actions, userId);
 
     // return success - user will be notified when video is ready
     res.status(200).json({ message: "Video generation enqueued successfully" });
-  }
-)
-
-app.get(
-  "/get-manifest-v3",
-  async (
-    req: Request<{}, {}, { actions: Array<IAction> }>,
-    res: Response
-  ) => {
-    // returns the manifest.json file for the given uuid
-    const uuid = req.query.uuid;
-    console.log('return manifest for uuid', uuid)
-    try {
-      // first try to find file in the new folder
-      let file = path.join(dirname, "..", "tmp", "v3", "new", `${uuid}.json`);
-      if (!fs.existsSync(file)) {
-        // if not found, try to find in the success folder
-        file = path.join(dirname, "..", "tmp", "v3", "success", `${uuid}.json`);
-        if (!fs.existsSync(file)) {
-          // return not found if not found in either folder
-          return res.status(404).json({ error: "Manifest not found" });
-        }
-      }
-
-      res.sendFile(file);
-    }
-    catch (error) {
-      console.error("Error getting manifest:", error);
-      res.status(500).json({ error: "Internal Server Error" });
-    }
   }
 )
 

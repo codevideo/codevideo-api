@@ -29,19 +29,6 @@ services:
       - ./tmp/v3/:/usr/src/app/tmp/v3/
     env_file: .env
 
-  # major challenges with sound here, for now we will run non-dockerized on host machine(s)
-  # go-video-dispatcher:
-  #   build:
-  #     context: ./go-video-dispatcher
-  #     dockerfile: Dockerfile
-  #   image: go-video-dispatcher
-  #   container_name: go-video-dispatcher
-  #   restart: always
-  #   networks:
-  #     - codevideo-network
-  #   volumes:
-  #     - ./tmp/v3/:/usr/src/app/tmp/v3/
-
   gatsby-static-server:
     build:
       context: ./gatsby-static-server
@@ -50,6 +37,15 @@ services:
     container_name: gatsby-static-server
     ports:
       - "7001:7001"
+    restart: always
+    networks:
+      - codevideo-network
+  
+  languagetool:
+    image: erikvl87/languagetool
+    container_name: languagetool
+    ports:
+      - "8010:8010"
     restart: always
     networks:
       - codevideo-network
