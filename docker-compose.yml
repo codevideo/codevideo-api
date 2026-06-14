@@ -13,6 +13,12 @@ services:
     volumes:
       - ./tmp/v3/:/usr/src/app/tmp/v3/
     env_file: .env.staging
+    # TTS_SERVICE_URL points at the self-hosted codevideo-tts service. To use it,
+    # set CODEVIDEO_TTS_PROVIDER=kokoro in .env.staging (default stays elevenlabs).
+    environment:
+      - TTS_SERVICE_URL=http://codevideo-tts:3000
+    depends_on:
+      - codevideo-tts
 
   codevideo-api:
     build:
@@ -28,6 +34,12 @@ services:
     volumes:
       - ./tmp/v3/:/usr/src/app/tmp/v3/
     env_file: .env
+    # set CODEVIDEO_TTS_PROVIDER=kokoro in .env to switch this instance to the
+    # self-hosted TTS service below (default stays elevenlabs until you flip it).
+    environment:
+      - TTS_SERVICE_URL=http://codevideo-tts:3000
+    depends_on:
+      - codevideo-tts
 
   gatsby-static-server:
     build:
@@ -49,6 +61,23 @@ services:
     restart: always
     networks:
       - codevideo-network
+
+  # Self-hosted, vendor-free TTS (Kokoro, pure Node) — see ../codevideo-tts.
+  # Reached by the API at http://codevideo-tts:3000 on the internal network.
+  codevideo-tts:
+    build:
+      context: ../codevideo-tts
+      dockerfile: Dockerfile
+    image: codevideo-tts
+    container_name: codevideo-tts
+    restart: always
+    networks:
+      - codevideo-network
+    volumes:
+      # persist the ~300MB Kokoro model across restarts
+      - codevideo-tts-models:/app/.hf-cache
+    environment:
+      - HF_HOME=/app/.hf-cache
 
   nginx:
     build:
@@ -79,3 +108,6 @@ services:
 networks:
   codevideo-network:
     driver: bridge
+
+volumes:
+  codevideo-tts-models:
