@@ -1,0 +1,9 @@
+node_modules
+audio-cache
+.hf-cache
+*.wav
+*.mp3
+.git
+alt-kokoro-web
+dist
+.DS_Store

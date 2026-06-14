@@ -1,0 +1,19 @@
+services:
+  kokoro-web:
+    image: ghcr.io/eduardolat/kokoro-web:latest
+    environment:
+      - KW_SECRET_API_KEY=123456
+      - KW_PUBLIC_NO_TRACK=true
+    volumes:
+      - ./kokoro-cache:/kokoro/cache  # Cache downloaded models and voices
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - kokoro-web
+    restart: unless-stopped
