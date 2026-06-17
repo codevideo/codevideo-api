@@ -14,10 +14,12 @@
   "description": "",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
+    "@clerk/backend": "^3.7.0",
     "@fullstackcraftllc/codevideo-types": "^2.1.31",
     "@google/genai": "^1.10.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.5.2",
     "fastmcp": "^3.8.4",
     "ws": "^8.18.3"
   },

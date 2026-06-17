@@ -1,7 +1,10 @@
 import { FastMCP } from 'fastmcp';
+import http from 'http';
 import WebSocket from 'ws';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import { verifyToken } from '@clerk/backend';
 import { z } from 'zod';
 import { AllActionStrings } from "@fullstackcraftllc/codevideo-types";
 import { LLMFactory, LLMProvider } from './llm-factory';
@@ -81,30 +84,62 @@ class DelimitedJSONParser {
     }
 }
 
-// WebSocket server for streaming updates
-const wss = new WebSocket.Server({ port: 9000 });
+// Connections grouped by sessionId, so a generation streams ONLY to the client
+// that requested it instead of every connected browser (multi-tenant safe).
+const sessions = new Map<string, Set<WebSocket>>();
+let totalConnections = 0;
+const MAX_CONNECTIONS = Number(process.env.GENIE_MAX_WS_CONNECTIONS) || 200;
 
-// Store active connections
-const activeConnections = new Set<WebSocket>();
-
-wss.on('connection', (ws) => {
-    activeConnections.add(ws);
-    console.log('Client connected to WebSocket');
+// The WebSocket server shares the HTTP server (one port), so a single reverse-
+// proxy location can serve both the trigger and the stream. Wired at listen time.
+function handleWsConnection(ws: WebSocket, req: http.IncomingMessage) {
+    if (totalConnections >= MAX_CONNECTIONS) {
+        ws.close(1013, 'Server at capacity');
+        return;
+    }
+    // sessionId arrives as a query param: ws://host:9000?sessionId=<uuid>
+    const sessionId = new URL(req.url ?? '', 'http://localhost').searchParams.get('sessionId');
+    if (!sessionId) {
+        ws.close(1008, 'Missing sessionId');
+        return;
+    }
+    totalConnections++;
+    let set = sessions.get(sessionId);
+    if (!set) {
+        set = new Set();
+        sessions.set(sessionId, set);
+    }
+    set.add(ws);
+    console.log(`Client connected (session ${sessionId}); ${totalConnections} total`);
 
     ws.on('close', () => {
-        activeConnections.delete(ws);
-        console.log('Client disconnected from WebSocket');
+        totalConnections--;
+        const s = sessions.get(sessionId);
+        if (s) {
+            s.delete(ws);
+            if (s.size === 0) sessions.delete(sessionId);
+        }
+        console.log(`Client disconnected (session ${sessionId}); ${totalConnections} total`);
     });
-});
+}
 
-// Broadcast to all connected clients
+// Send only to the sockets belonging to one session.
+function sendToSession(sessionId: string, data: any) {
+    const set = sessions.get(sessionId);
+    if (!set) return;
+    const message = JSON.stringify(data);
+    set.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(message);
+    });
+}
+
+// Broadcast to ALL connected clients. Used only by the legacy MCP tool path,
+// which has no per-user session; the public HTTP path uses sendToSession.
 function broadcast(data: any) {
     const message = JSON.stringify(data);
-    activeConnections.forEach(ws => {
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(message);
-        }
-    });
+    sessions.forEach(set => set.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(message);
+    }));
 }
 
 // FastMCP tool for generating lessons
@@ -292,10 +327,50 @@ Focus on the main technology and concept. Keep the name short and descriptive.
     }
 }
 
-// HTTP endpoint for your React app to trigger generation
-app.post('/codevideo-mcp/agent', async (req, res) => {
+// Rate limit the costly generation trigger per IP.
+const agentLimiter = rateLimit({
+    windowMs: Number(process.env.GENIE_RATE_WINDOW_MS) || 10 * 60 * 1000,
+    max: Number(process.env.GENIE_RATE_MAX) || 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Too many generation requests, please slow down.' },
+});
+
+// Verify the caller's Clerk session JWT. Enforced only when CLERK_SECRET_KEY is
+// set, so local dev without Clerk still works; set it in production so randoms
+// can't burn the server-side LLM key.
+const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
+    if (!CLERK_SECRET_KEY) {
+        return next();
+    }
+    const header = req.headers.authorization;
+    const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
+    if (!token) {
+        res.status(401).json({ success: false, error: 'Sign in to generate.' });
+        return;
+    }
     try {
-        const { prompt } = req.body;
+        await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
+        next();
+    } catch {
+        res.status(401).json({ success: false, error: 'Invalid or expired session.' });
+    }
+}
+
+// HTTP endpoint for your React app to trigger generation
+app.post('/codevideo-mcp/agent', agentLimiter, requireAuth, async (req, res) => {
+    const { prompt, sessionId } = req.body ?? {};
+    if (!sessionId) {
+        return res.status(400).json({ success: false, error: 'Missing sessionId.' });
+    }
+    if (!prompt) {
+        return res.status(400).json({ success: false, error: 'Missing prompt.' });
+    }
+    // Shadow broadcast: stream this generation ONLY to the requesting client's
+    // session rather than every connected browser.
+    const broadcast = (data: any) => sendToSession(sessionId, data);
+    try {
         console.log('Received prompt:', prompt);
 
         // Since FastMCP handles tools internally, we manually call the generate-lesson logic
@@ -466,18 +541,43 @@ Generate actions one at a time. Start generating now:
         });
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({
-            success: false,
-            error: (error as Error).message
-        });
+        // let the client's IDE stop "streaming" instead of hanging
+        broadcast({ type: 'error', message: (error as Error).message });
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                error: (error as Error).message
+            });
+        }
     }
 });
 
-// Start the HTTP server
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`FastMCP HTTP server running on http://localhost:${PORT}`);
-    console.log(`WebSocket server running on ws://localhost:9000`);
+// Behind a reverse proxy (nginx), trust it so express-rate-limit keys on the
+// real client IP (X-Forwarded-For) instead of the proxy's IP. Set
+// GENIE_TRUST_PROXY=1 in production; leave unset locally.
+if (process.env.GENIE_TRUST_PROXY) {
+    app.set('trust proxy', Number(process.env.GENIE_TRUST_PROXY) || 1);
+}
+
+// One HTTP server hosts BOTH the REST trigger and the WebSocket stream, so a
+// single public URL maps to one upstream (e.g. https://api.codevideo.io/genie
+// for the POST + wss://api.codevideo.io/genie for the stream). Default 3001,
+// NOT 3000: the genie frontend's next/netlify dev use 3000, so a 3000 default
+// here would lose the port and the trigger would hit Next (404, no CORS).
+const PORT = Number(process.env.GENIE_HTTP_PORT ?? process.env.PORT) || 3001;
+const httpServer = http.createServer(app);
+const wss = new WebSocket.Server({ server: httpServer });
+wss.on('connection', handleWsConnection);
+httpServer.listen(PORT, () => {
+    console.log(`Genie HTTP + WebSocket server on port ${PORT} (WS shares the port)`);
+});
+httpServer.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`\n[genie] Port ${PORT} is already in use. Set GENIE_HTTP_PORT to a free port and point the frontend's NEXT_PUBLIC_GENIE_API_URL/WS_URL at it.\n`);
+    } else {
+        console.error('[genie] HTTP server error:', err);
+    }
+    process.exit(1);
 });
 
 // Start the FastMCP server using stdio transport (for testing)
