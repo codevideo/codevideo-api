@@ -10,6 +10,8 @@ import { generateManifestFile } from "./utils/generateManifestFile.js";
 import { resolveProjectActions } from "./utils/resolveProjectActions.js";
 import { clerkClient, clerkMiddleware, getAuth, requireAuth } from "@clerk/express";
 import { userIsPayAsYouGo } from "./utils/userIsPayAsYouGo.js";
+import { authClerkOrApiKey } from "./auth/authClerkOrApiKey.js";
+import { generateApiKey, listApiKeys, revokeApiKey } from "./auth/apiKeys.js";
 import 'dotenv/config'
 import { LanguageToolResponse } from "./languagetooltypes/languagetooltypes.js";
 
@@ -26,7 +28,7 @@ const corsOptions = {
     "https://staging.studio.codevideo.io",
     "https://studio.codevideo.io"
   ],
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "DELETE"],
 };
 
 // Initialize Express app
@@ -98,17 +100,13 @@ app.post(
 
 app.post(
   "/create-video-v3",
-  requireAuth(), // current video generation endpoint exposed on the studio
+  authClerkOrApiKey, // Clerk session (studio) OR an API key (programmatic)
   async (
     req,
     res
   ) => {
-    const { userId } = getAuth(req);
-
-    // If user isn't authenticated, return a 401 error
-    if (userId === null) {
-      return res.status(401).json({ error: 'User not authenticated' })
-    }
+    // resolved by authClerkOrApiKey from either a session or an API key
+    const userId = (req as any).codevideoUserId as string;
     const user = await clerkClient.users.getUser(userId)
     const metadata: ICodeVideoUserMetadata = user.publicMetadata as any || {}
 
@@ -137,6 +135,29 @@ app.post(
     res.status(200).json({ message: "Video generation enqueued successfully" });
   }
 )
+
+// --- API key management (Clerk session only; managed from the studio account) ---
+app.post("/api-keys", requireAuth(), async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "User not authenticated" });
+  const name = typeof req.body?.name === "string" ? req.body.name : "API key";
+  // plaintext is returned ONCE here and never stored
+  const result = await generateApiKey(userId, name);
+  res.status(201).json(result);
+});
+
+app.get("/api-keys", requireAuth(), async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "User not authenticated" });
+  res.status(200).json({ apiKeys: await listApiKeys(userId) });
+});
+
+app.delete("/api-keys/:id", requireAuth(), async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "User not authenticated" });
+  await revokeApiKey(userId, req.params.id);
+  res.status(200).json({ ok: true });
+});
 
 // read in codeVideoAsciiArt.txt as a string
 const codeVideoAsciiArt = fs.readFileSync(

@@ -79,6 +79,27 @@ services:
     environment:
       - HF_HOME=/app/.hf-cache
 
+  # Genie generation backend (LLM -> streamed CodeVideo actions). Sibling repo
+  # ../codevideo-genie; nginx proxies /genie here. One port (3001) serves both
+  # the HTTP trigger and the WebSocket stream. Create .env.genie with the LLM key
+  # (GEMINI_API_KEY or ANTHROPIC_API_KEY) + CLERK_SECRET_KEY before bringing it up.
+  codevideo-genie:
+    build:
+      context: ../codevideo-genie
+      dockerfile: Dockerfile
+    image: codevideo-genie
+    container_name: codevideo-genie
+    restart: always
+    networks:
+      - codevideo-network
+    expose:
+      - "3001"
+    env_file: .env.genie
+    environment:
+      - NODE_ENV=production
+      - GENIE_HTTP_PORT=3001
+      - GENIE_TRUST_PROXY=1
+
   nginx:
     build:
       context: ./nginx
@@ -93,6 +114,7 @@ services:
       - codevideo-network
     depends_on:
       - codevideo-api
+      - codevideo-genie
     volumes:
       - ./nginx/conf/:/etc/nginx/conf.d/:ro
       - ./certbot/www/:/var/www/certbot/:ro
