@@ -26,8 +26,11 @@ services:
       dockerfile: Dockerfile
     image: codevideo-api
     container_name: codevideo-api
-    ports:
-      - "7000:7000"
+    # exposed on the docker network only (nginx proxies to codevideo-api:7000),
+    # NOT published to the host — so the host render worker (codevideo -m serve)
+    # can own host :7000 for its manifest server (/get-manifest-v3).
+    expose:
+      - "7000"
     restart: always
     networks:
       - codevideo-network
@@ -41,18 +44,12 @@ services:
     depends_on:
       - codevideo-tts
 
-  gatsby-static-server:
-    build:
-      context: ./gatsby-static-server
-      dockerfile: Dockerfile
-    image: gatsby-static-server
-    container_name: gatsby-static-server
-    ports:
-      - "7001:7001"
-    restart: always
-    networks:
-      - codevideo-network
-  
+  # The old gatsby-static-server (host :7001) was removed: the render worker
+  # (codevideo -m serve, a host systemd process) bundles its own static server
+  # on :7001 serving the refreshed embedded IDE, so this container was redundant
+  # and squatted the port the worker needs. It's render-only (no nginx route);
+  # re-add only if a public path ever needs it.
+
   languagetool:
     image: erikvl87/languagetool
     container_name: languagetool
