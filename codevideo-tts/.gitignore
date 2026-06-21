@@ -1,0 +1,14 @@
+node_modules
+audio-cache
+.hf-cache
+*.wav
+*.mp3
+dist
+.DS_Store
+# the kokoro-web (Python) model cache, not used by our Node service
+alt-kokoro-web/kokoro-cache
+
+# secrets — never commit (this repo is public)
+.env
+.env.*
+!.env.example
