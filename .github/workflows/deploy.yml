@@ -1,0 +1,43 @@
+name: Deploy
+
+# Autodeploy: SSH to the host and rebuild the compose stack in place (matches the
+# existing build-on-server model). Trigger on push to main, plus manual dispatch
+# for the first/controlled run.
+#
+# Required repo secrets:
+#   DEPLOY_HOST  - server hostname or IP
+#   DEPLOY_USER  - SSH user (e.g. root)
+#   DEPLOY_KEY   - SSH private key with access to that user
+#   DEPLOY_PATH  - absolute path to the monorepo checkout (e.g. /root/codevideo-api)
+#
+# Pre-reqs before enabling (see DEPLOYMENT.md):
+#   - commit the server's local nginx/conf/api.fullstackcraft.com.conf edit, or
+#     `git pull --ff-only` below will refuse to fast-forward and the deploy fails.
+#   - point the server checkout at this restructured monorepo (single checkout,
+#     no sibling ../codevideo-genie or ../codevideo-tts needed anymore).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH (build on server)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git fetch origin main
+            git pull --ff-only origin main
+            docker compose up -d --build
+            docker image prune -f

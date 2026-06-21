@@ -40,7 +40,9 @@ RUN /opt/venv/bin/python -m pip install --upgrade pip
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/package*.json ./
 COPY --from=builder /usr/src/app/swagger.json ./
-COPY --from=builder /usr/src/app/.env ./
+# .env is intentionally NOT baked into the image — it is injected at runtime via
+# docker-compose `env_file: .env` (the central monorepo env). Keeps secrets out
+# of image layers and lets one .env drive every service.
 COPY --from=builder /usr/src/app/codeVideoAsciiArt.txt ./
 COPY --from=builder /usr/src/app/instrument.mjs ./
 

@@ -1,0 +1,8 @@
+# keep the build context lean — the Dockerfile builds from source, not artifacts
+node_modules
+dist
+tmp
+.env
+.env.*
+*.log
+.DS_Store

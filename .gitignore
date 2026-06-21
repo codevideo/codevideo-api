@@ -1,11 +1,22 @@
-node_modules
-dist
+# --- dependencies & build output (all apps) ---
+**/node_modules/
+**/dist/
+
+# --- central env: never commit real secrets ---
 .env
-.env.staging
-tmp
+.env.*
+!.env.example
 
-# go binary
-go-video-dispatcher/go-video-dispatcher
+# --- render queue & model/audio caches ---
+tmp/
+**/audio-cache/
+**/.hf-cache/
 
-# nohup.out
+# --- certbot runtime (live certs + ACME challenges) ---
+certbot/conf/
+certbot/www/
+
+# --- misc ---
+.DS_Store
+*.log
 nohup.out

@@ -1,179 +1,60 @@
-# codevideo-api
+# CodeVideo server monorepo
 
-The Node express API for CodeVideo video creation. Uses [`codevideo-backend-engine`](https://github.com/codevideo/codevideo-backend-engine) behind the scenes.
+The CodeVideo backend stack in one repo: the API, the generation backend (genie),
+and self-hosted text-to-speech (tts). Everything deploys from a single checkout —
+no sibling folders required.
 
-## Local Development
+```
+.
+├── codevideo-api/     # Express API — video creation, S3, auth, TTS orchestration (:7000)
+├── codevideo-genie/   # LLM → CodeVideo actions backend, HTTP + WebSocket (:3001, proxied at /genie)
+├── codevideo-tts/     # self-hosted Kokoro TTS, OpenAI-compatible (:3000, internal)
+├── nginx/             # reverse proxy + TLS termination
+├── certbot/           # Let's Encrypt (runtime certs are gitignored)
+├── tmp/v3/            # render-queue bind mount shared with the host worker
+├── docker-compose.yml # orchestrates every service
+├── .env / .env.staging# central env (gitignored) — see .env.example
+└── .github/workflows/ # CI (per-app build/test) + autodeploy (SSH to host)
+```
 
-Install dependencies:
+## Run the whole stack
 
-```shell
+```bash
+cp .env.example .env          # then fill in secrets (S3, Clerk, LLM key, ...)
+docker compose up -d --build
+```
+
+`docker compose up` builds and starts api + genie + tts + nginx + languagetool.
+The compose file uses local build contexts (`./codevideo-api`, `./codevideo-genie`,
+`./codevideo-tts`), so a clone is fully self-contained.
+
+## Central environment
+
+One `.env` at the repo root feeds every service via `env_file: .env`. Shared
+secrets and provider selection live there; per-service values that would collide
+(ports, service URLs) are pinned in `docker-compose.yml` `environment:` — notably
+`PORT=3000` for tts, which overrides the API's `PORT` from the shared file. See
+[.env.example](.env.example) for the full list. The staging API reads `.env.staging`.
+
+## Per-app local dev (non-docker)
+
+Each app is a standalone Node/TypeScript project:
+
+```bash
+cd codevideo-api   # or codevideo-genie / codevideo-tts
 npm install
+node --env-file=../.env <entry>   # load the central env (Node 20+)
 ```
 
-Start the server:
+`docker compose up` is the supported path; the above is for iterating on one service.
 
-```shell
-npm start
-```
+## CI / CD
 
-This will start the server on `http://localhost:7000`.
-
-## Usage from a client - V3
-
-Simply call https://api.codevideo.io/create-video-v3 with a JSON body corresponding to an array of actions (`IAction` from `@fullstackcraftllc/codevide-types), and we handle the rest. You must be signed in to use this endpoint.
-
-The V3 endpoint has 3 parts: 
-
-1. the main express entry point, which first builds all the needed audio for the video
-2. `go-video-dispatcher`, which calls the `recordVideoV3.js` node script to record the
-2. the `recordVideoV3.js` script, which uses puppeteer to record the actual video
-
-## Where is V2?
-
-V2 was what I called the desktop driver for visual studio code and never build an API for that... maybe someday.
-
-## Usage from a client - Legacy
-
-Simply call https://api.codevideo.io/generate-video-immediately with a JSON body corresponding to the interface defined in [IGenerateVideoFromActionsOptions in codevideo-backend-engine](https://github.com/codevideo/codevideo-backend-engine/blob/main/src/interfaces/IGenerateVideoFromActionsOptions.ts)
-
-This is a first-in-first-out endpoint, so expect this URL to get gunked up as CodeVideo gains traction (if ever, lol). Here is an example calling the API using bash:
-
-```shell
-curl -s -X POST \
-  -H "Content-Type: application/json" \
-  -d '{
-    "actions": [
-      {
-        "name": "author-speak-before",
-        "value": "Welcome to the amazing world of CodeVideo. Here'\''s some code!"
-      },
-      {
-        "name": "editor-type",
-        "value": "console.log('\''hello world!'\'');"
-      }
-    ],
-    "language": "javascript",
-    "textToSpeechOption": "elevenlabs",
-    "ttsApiKey": "YOUR_ELEVENLABS_API_KEY",
-    "ttsVoiceId": "YOUR_VOICE_ID"
-  }' \
-  https://api.codevideo.io/create-video-immediately
-```
-
-And using TypeScript:
-
-```typescript
-const response = await fetch("https://api.codevideo.io/generate-video-immediately", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    actions,
-    language,
-    textToSpeechOption,
-  }),
-});
-const data = await response.json()
-// bucket url to mp4 file
-console.log(data.url)
-```
-
-## Run locally via Docker
-
-First, make sure you have a `.env` file wherever you are going to run this API. (See `.env.example` in the root of the project and `.env.example` in the `go-video-dispatcher` folder).
-
-*Note: we know Docker stuff is a pain in the ass, so note here we are using the newer `docker compose` and `docker-compose` syntax.
-
-Build the Docker services:
-
-```shell
-docker compose build
-```
-
-Then start up the various containers (which includes the Express server, go microservice, puppeteer runner, and static Gatsby site for recording) and NGINX container:
-
-```shell
-docker compose up -d
-```
-
-Full restart:
-
-```shell
-docker compose build && docker compose up -d
-```
-
-You also need to have an instance of the [`codevideo-cli`](https://github.com/codevideo/codevideo-cli) running in `serve` mode:
-
-```shell
-git clone https://github.com/codevideo/codevideo-cli
-cp .env.example .env
-go build -o codevideo
-nohup ./codevideo -m serve &
-```
-
-a docker image is coming for this shortly.
-
-## Self Deployment (On Premise or Cloud)
-
-### Storage
-
-You'll need a S3 bucket or similar to store the videos, note the env variables `CODEVIDEO_S3_KEY_ID` and `CODEVIDEO_S3_SECRET` should correspond to your S3 Bucket's credentials.
-
-### Steps for SSL
-
-Rename `nginx/conf/api.codevideo.io.conf` to `nginx/conf/yoursitename.com.conf`
-
-Rename all instances of `api.codevideo.io` in that `.conf` file to your site name, and ensure the 443 block is commented out.
-
-To dry run (this example for api.codevideo.io)
-
-```shell
-docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io --dry-run
-```
-
-or for staging.api.codevideo.io
-
-```shell
-docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d staging.api.codevideo.io --dry-run
-```
-
-If the dry run works, issue the certbot command without --dry-run:
-
-```shell
-docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d api.codevideo.io
-```
-
-or for staging.api.codevideo.io
-
-```shell
-docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d staging.api.codevideo.io
-```
-
-Note that after renewing a cert you will need to restart the NGINX container:
-
-```shell
-docker restart <container-name-or-id-here>
-```
-
-Because the certbot image is mapped to folders in this repository, your certs will be in `certbot/conf/live/` folder.
-
-You can now uncomment the 443 block in your `.conf` file and restart the NGINX container:
-
-```shell
-docker compose down && docker compose up -d
-```
-
-### Renew SSL Certs
-
-Ensure you are in the root of this project (we need to be able to read `docker-compose.yml`) then run:
-
-```shell
-docker compose run --rm certbot renew
-```
-
-## Run Tests (not working yet, jest with ESM typescript lol)
-
-```shell
-npm test
-```
+- **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)) — on PRs into main
+  and pushes to other branches: per-app `npm ci` + type-check (+ test/build where
+  defined).
+- **Deploy** ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)) — on
+  push to `main` (or manual dispatch): SSH to the host and
+  `git pull --ff-only && docker compose up -d --build`. Requires the `DEPLOY_*`
+  secrets listed in that file. See [DEPLOYMENT.md](DEPLOYMENT.md) for server state
+  and pre-reqs.

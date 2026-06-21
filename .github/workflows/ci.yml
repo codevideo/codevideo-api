@@ -1,0 +1,59 @@
+name: CI
+
+# Runs on PRs into main and on pushes to any non-main branch. Each app is an
+# independent job; add per-path filtering later if build minutes become a concern.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codevideo-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: codevideo-api/package-lock.json
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm test
+
+  genie:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codevideo-genie
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: codevideo-genie/package-lock.json
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run build
+
+  tts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codevideo-tts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: codevideo-tts/package-lock.json
+      - run: npm ci
+      # tts has no build step (runs via tsx) and `npm run smoke` would download
+      # the ~300MB Kokoro model, so CI is type-check only.
+      - run: npm run type-check
