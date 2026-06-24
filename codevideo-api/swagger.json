@@ -78,12 +78,44 @@
       "RequestBodyV3": {
         "type": "object",
         "properties": {
+          "project": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IAction"
+            },
+            "description": "Actions array, or an ILesson / ICourse object."
+          },
           "actions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/IAction"
-            }
+            },
+            "description": "Legacy alias for project (actions array)."
+          },
+          "options": {
+            "$ref": "#/components/schemas/CreateVideoOptions"
           }
+        }
+      },
+      "CreateVideoOptions": {
+        "type": "object",
+        "description": "Optional render settings. Unknown keys are ignored. resolution and orientation are accepted now but only take effect once the render worker is updated.",
+        "properties": {
+          "voiceId": { "type": "string", "description": "Overrides the active TTS provider's default voice (Kokoro voice name or ElevenLabs voice id).", "example": "af_heart" },
+          "resolution": { "type": "string", "enum": ["1080p", "4K"], "example": "1080p" },
+          "orientation": { "type": "string", "enum": ["landscape", "portrait"], "example": "landscape" },
+          "theme": { "type": "string", "enum": ["light", "dark"], "example": "dark" },
+          "withCaptions": { "type": "boolean", "example": true },
+          "fontSizePx": { "type": "number", "example": 26 },
+          "fileExplorerWidth": { "type": "number", "example": 400 },
+          "terminalHeight": { "type": "number", "example": 350 },
+          "mouseColor": { "type": "string", "example": "black" },
+          "isFileExplorerVisible": { "type": "boolean", "example": true },
+          "isTerminalVisible": { "type": "boolean", "example": true },
+          "keyboardTypingPauseMs": { "type": "number", "example": 40 },
+          "standardPauseMs": { "type": "number", "example": 200 },
+          "longPauseMs": { "type": "number", "example": 2000 },
+          "defaultLanguage": { "type": "string", "example": "javascript" }
         }
       },
       "RequestBody": {

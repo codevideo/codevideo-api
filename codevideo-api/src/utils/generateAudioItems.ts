@@ -10,19 +10,24 @@ import { getAudioArrayBufferKokoro } from "../tts/getAudioArrayBufferKokoro.js";
  * CODEVIDEO_TTS_PROVIDER=kokoro (with TTS_SERVICE_URL pointing at the
  * self-hosted codevideo-tts service) to drop the ElevenLabs dependency.
  */
-const synthesize = async (textToSpeak: string): Promise<ArrayBuffer> => {
+const synthesize = async (textToSpeak: string, voiceId?: string): Promise<ArrayBuffer> => {
     const provider = process.env.CODEVIDEO_TTS_PROVIDER || "elevenlabs";
     if (provider === "kokoro") {
         const serviceUrl = process.env.TTS_SERVICE_URL;
         if (!serviceUrl) {
             throw new Error("CODEVIDEO_TTS_PROVIDER=kokoro requires TTS_SERVICE_URL to be set.");
         }
-        return getAudioArrayBufferKokoro(textToSpeak, serviceUrl, process.env.KOKORO_VOICE);
+        return getAudioArrayBufferKokoro(textToSpeak, serviceUrl, voiceId ?? process.env.KOKORO_VOICE);
     }
-    return getAudioArrayBufferElevenLabs(textToSpeak, process.env.ELEVEN_LABS_API_KEY, process.env.ELEVEN_LABS_VOICE_ID);
+    return getAudioArrayBufferElevenLabs(textToSpeak, process.env.ELEVEN_LABS_API_KEY, voiceId ?? process.env.ELEVEN_LABS_VOICE_ID);
 }
 
-export const generateAudioItems = async (actions: Array<IAction>): Promise<IAudioItem[]> => {
+/**
+ * `voiceId` (from the request options) overrides the provider's env default and
+ * is interpreted by whichever provider CODEVIDEO_TTS_PROVIDER selects (a Kokoro
+ * voice name, or an ElevenLabs voice id).
+ */
+export const generateAudioItems = async (actions: Array<IAction>, voiceId?: string): Promise<IAudioItem[]> => {
     const audioManifest = Array<{ text: string, mp3Url: string }>();
 
     // for each speak action, convert the text to audio and upload it to S3
@@ -32,7 +37,7 @@ export const generateAudioItems = async (actions: Array<IAction>): Promise<IAudi
         const textHash = sha256Hash(textToSpeak);
         if (action.name.startsWith('author-speak')) {
             console.log(`Converting text at step index ${i} to audio... (hash is ${textHash})`);
-            const arrayBuffer = await synthesize(textToSpeak);
+            const arrayBuffer = await synthesize(textToSpeak, voiceId);
             const buffer = Buffer.from(arrayBuffer);
             // upload the buffer to S3 (the cost being removed is the TTS API, not S3)
             const mp3Url = await uploadFileToS3(buffer, `${textHash}.mp3`);

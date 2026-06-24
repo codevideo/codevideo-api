@@ -8,6 +8,7 @@ import swaggerDocument from "../swagger.json" with { type: "json" };
 import { ICodeVideoUserMetadata } from "@fullstackcraftllc/codevideo-types";
 import { generateManifestFile } from "./utils/generateManifestFile.js";
 import { resolveProjectActions } from "./utils/resolveProjectActions.js";
+import { validateCreateVideoOptions } from "./utils/validateCreateVideoOptions.js";
 import { clerkClient, clerkMiddleware, getAuth, requireAuth } from "@clerk/express";
 import { userIsPayAsYouGo } from "./utils/userIsPayAsYouGo.js";
 import { authClerkOrApiKey } from "./auth/authClerkOrApiKey.js";
@@ -128,8 +129,15 @@ app.post(
       return res.status(400).json({ error: "Only a maximum of 250 actions is allowed for pay-as-you-go customers. Please sign up for a premium subscription at https://studio.codevideo.io/ or see how to setup your own CodeVideo engine backend at https://github.com/codevideo/codevideo-api" });
     }
 
+    // optional render options (voice, layout, captions, ... ). Unknown keys are
+    // ignored; a recognized key with the wrong type/enum is a 400.
+    const { valid, error, options } = validateCreateVideoOptions(req.body?.options);
+    if (!valid) {
+      return res.status(400).json({ error });
+    }
+
     // this created manifest is picked up by the go based CLI tool running in serve mode.
-    await generateManifestFile(dirname, actions, userId);
+    await generateManifestFile(dirname, actions, userId, options);
 
     // return success - user will be notified when video is ready
     res.status(200).json({ message: "Video generation enqueued successfully" });
