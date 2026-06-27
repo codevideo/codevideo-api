@@ -36,17 +36,42 @@ secrets and provider selection live there; per-service values that would collide
 `PORT=3000` for tts, which overrides the API's `PORT` from the shared file. See
 [.env.example](.env.example) for the full list. The staging API reads `.env.staging`.
 
-## Per-app local dev (non-docker)
+## Local development
 
-Each app is a standalone Node/TypeScript project:
+`docker compose up` runs the full stack. To iterate on one service, run it
+directly (Node 20+; the central `.env` is one level up).
+
+**Kokoro TTS** — no auth, the quickest way to try voices:
 
 ```bash
-cd codevideo-api   # or codevideo-genie / codevideo-tts
-npm install
-node --env-file=../.env <entry>   # load the central env (Node 20+)
+cd codevideo-tts && npm install && npm start   # :3000, downloads ~300MB model on first boot
+curl -s localhost:3000/health
+curl -s -X POST localhost:3000/v1/audio/speech \
+  -H 'Content-Type: application/json' \
+  -d '{"input":"Hello from CodeVideo.","voice":"af_heart"}' --output hello.mp3
 ```
 
-`docker compose up` is the supported path; the above is for iterating on one service.
+`voice` is the same string you pass as the API's `options.voiceId` (e.g. `af_heart`,
+`am_michael`, `bf_emma`).
+
+**API** — set `CODEVIDEO_TTS_PROVIDER=kokoro` and `TTS_SERVICE_URL=http://localhost:3000`
+in the central `.env` (alongside your Supabase/Clerk/S3 keys), then:
+
+```bash
+cd codevideo-api && npm install && npm run build
+node --env-file=../.env dist/index.js          # :7000
+```
+
+`POST /create-video-v3` needs an API key (`x-api-key: cvk_…`, tied to a Clerk user
+with ≥10 tokens). It synthesizes audio, uploads to S3, and writes a manifest to
+`tmp/v3/new/` for the host worker to render:
+
+```bash
+curl -s -X POST localhost:7000/create-video-v3 \
+  -H 'Content-Type: application/json' -H 'x-api-key: cvk_YOUR_KEY' \
+  -d '{"project":[{"name":"author-speak-before","value":"Hello world."}],
+       "options":{"voiceId":"am_michael","theme":"dark","withCaptions":true}}'
+```
 
 ## CI / CD
 
