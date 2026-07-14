@@ -23,8 +23,9 @@ export const generateManifestFile = async (
 ) => {
     const uuid = uuidv4();
 
-    // generate mp3s for each action (voiceId overrides the provider's env default)
-    const audioItems = await generateAudioItems(actions, options.voiceId);
+    // generate audio per author-speak action (voiceId / ttsProvider from options;
+    // S3 in prod, inline data URI in dev — handled inside generateAudioItems)
+    const audioItems = await generateAudioItems(actions, options);
 
     // create manifest. We write an actions-based manifest (the render path the
     // CLI + example v3 page already consume): a course/lesson payload is

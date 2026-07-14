@@ -1,6 +1,7 @@
 import { requireAuth, getAuth } from "@clerk/express";
 import type { Request, Response, NextFunction } from "express";
 import { validateApiKey } from "./apiKeys.js";
+import { isDevMode } from "../utils/isDevMode.js";
 
 /**
  * Resolve a userId from EITHER an API key (header `x-api-key`, or
@@ -10,6 +11,12 @@ import { validateApiKey } from "./apiKeys.js";
  * (Clerk session) flow is unchanged.
  */
 export async function authClerkOrApiKey(req: Request, res: Response, next: NextFunction) {
+  // Local dev mode: no API key or Clerk session needed.
+  if (isDevMode()) {
+    (req as any).codevideoUserId = "local-dev";
+    return next();
+  }
+
   const headerKey = req.header("x-api-key");
   const authHeader = req.header("authorization") || "";
   const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";

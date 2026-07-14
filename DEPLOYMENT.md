@@ -4,6 +4,12 @@ Snapshot from the B0 audit, 2026-06-12. This answers "what is actually running
 in production" so the worker migration (go-video-dispatcher → codevideo-cli)
 starts from facts rather than memory.
 
+> **Update (2026-07):** the migration landed as a **containerized** worker, not a
+> host process. `codevideo-cli` now runs in the compose stack as the `codevideo-cli`
+> service, pulled from Docker Hub (`fullstackcraft/codevideo-cli`) and sharing the
+> `tmp/v3` queue. This supersedes the "host systemd unit" framing below: container
+> `restart: always` + `init: true` provide the supervision the audit called for.
+
 ## What is live
 
 | Piece | State |
@@ -36,8 +42,9 @@ starts from facts rather than memory.
 ## Implications for the migration (Plan B)
 
 1. **B5 is a worker replacement, not an update-in-place**: retire
-   `go-video-dispatcher` in favor of `codevideo -m serve`, under a **systemd
-   unit** (fixes the no-supervision fragility at the same time).
+   `go-video-dispatcher` in favor of `codevideo -m serve`. Shipped as the
+   containerized `codevideo-cli` compose service (see the update note above);
+   `restart: always` supervises it, fixing the no-supervision fragility.
 2. The local repo's pending deletion of `go-video-dispatcher/` is correct for
    git, but **do not delete that directory on the server** until the CLI
    worker is live — the running binary, its puppeteer-runner node_modules, and
@@ -54,4 +61,5 @@ starts from facts rather than memory.
 - [ ] Rescue/commit the server's `api.fullstackcraft.com.conf` edit
 - [ ] Inspect the 3 stuck manifests (`cat tmp/v3/new/*.json`) — refund/re-run?
 - [ ] Kill leaked Chromium PID 3496143 after confirming it's orphaned
-- [ ] Decide systemd unit spec for the future `codevideo -m serve` worker
+- [x] Supervise the `codevideo -m serve` worker — done via the `codevideo-cli`
+      compose service (`restart: always` + `init: true`), not a host systemd unit

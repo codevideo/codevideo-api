@@ -9,6 +9,7 @@ import { ICodeVideoUserMetadata } from "@fullstackcraftllc/codevideo-types";
 import { generateManifestFile } from "./utils/generateManifestFile.js";
 import { resolveProjectActions } from "./utils/resolveProjectActions.js";
 import { validateCreateVideoOptions } from "./utils/validateCreateVideoOptions.js";
+import { isDevMode } from "./utils/isDevMode.js";
 import { clerkClient, clerkMiddleware, getAuth, requireAuth } from "@clerk/express";
 import { userIsPayAsYouGo } from "./utils/userIsPayAsYouGo.js";
 import { authClerkOrApiKey } from "./auth/authClerkOrApiKey.js";
@@ -106,14 +107,18 @@ app.post(
     req,
     res
   ) => {
-    // resolved by authClerkOrApiKey from either a session or an API key
-    const userId = (req as any).codevideoUserId as string;
-    const user = await clerkClient.users.getUser(userId)
-    const metadata: ICodeVideoUserMetadata = user.publicMetadata as any || {}
+    // dev mode skips auth + token/quota checks; prod resolves the userId from the
+    // Clerk session or API key (authClerkOrApiKey) and gates on token balance.
+    const dev = isDevMode();
+    const userId = dev ? "local-dev" : ((req as any).codevideoUserId as string);
 
-    // if they don't have at least 10 tokens, return an error
-    if (metadata.tokens < 10) {
-      return res.status(400).json({ error: "You need at least 10 tokens to generate a video." });
+    let metadata: ICodeVideoUserMetadata | undefined;
+    if (!dev) {
+      const user = await clerkClient.users.getUser(userId);
+      metadata = (user.publicMetadata as any) || {};
+      if ((metadata?.tokens ?? 0) < 10) {
+        return res.status(400).json({ error: "You need at least 10 tokens to generate a video." });
+      }
     }
 
     // dual-accept: legacy { actions } or the newer { project: IAction[] | ILesson | ICourse }
@@ -125,7 +130,7 @@ app.post(
     }
 
     // pay as you go customer (no plan name) have a limit of 250 actions
-    if (userIsPayAsYouGo(metadata) && actions.length > 250) {
+    if (!dev && metadata && userIsPayAsYouGo(metadata) && actions.length > 250) {
       return res.status(400).json({ error: "Only a maximum of 250 actions is allowed for pay-as-you-go customers. Please sign up for a premium subscription at https://studio.codevideo.io/ or see how to setup your own CodeVideo engine backend at https://github.com/codevideo/codevideo-api" });
     }
 
@@ -204,4 +209,7 @@ app.use(clerkMiddleware())
 // Start the Express server
 app.listen(port, () => {
   console.log(`CodeVideo API is running on port ${port}`);
+  if (isDevMode()) {
+    console.warn("⚠️  DEV MODE (ENVIRONMENT=development): auth + token checks disabled, no S3 (audio inlined as data URIs), TTS defaults to kokoro. Do not use in production.");
+  }
 });

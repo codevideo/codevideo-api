@@ -16,6 +16,12 @@ tmp/
 certbot/conf/
 certbot/www/
 
+# --- local-dev only (never on the server) ---
+# auto-merged by `docker compose up`; publishes internal ports for curling. The
+# committed *.example is the template; the real file stays local so a server
+# git pull never gets it (the API must stay internal there).
+docker-compose.override.yml
+
 # --- misc ---
 .DS_Store
 *.log

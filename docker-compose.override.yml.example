@@ -1,0 +1,25 @@
+# Local-dev overrides. Copy to docker-compose.override.yml (gitignored) and
+# `docker compose up` auto-merges it — no -f flags needed.
+#
+# It does two things the base compose deliberately doesn't:
+#   1. publishes the otherwise-internal services to the host so you can curl them
+#   2. puts the API in dev mode (ENVIRONMENT=development): no API key required,
+#      no S3 (audio is inlined as base64 data URIs), and TTS defaults to kokoro
+#
+# NOT for the server: publishing :7000 would collide with the host render worker
+# (which is why the base keeps these internal), and dev mode disables auth. The
+# real override file is gitignored, so a server `git pull` never picks it up.
+services:
+  codevideo-tts:
+    ports:
+      - "3000:3000"
+
+  codevideo-api:
+    ports:
+      - "7000:7000"
+    environment:
+      - ENVIRONMENT=development
+
+  codevideo-genie:
+    ports:
+      - "3001:3001"

@@ -102,6 +102,7 @@
         "description": "Optional render settings. Unknown keys are ignored. resolution and orientation are accepted now but only take effect once the render worker is updated.",
         "properties": {
           "voiceId": { "type": "string", "description": "Overrides the active TTS provider's default voice (Kokoro voice name or ElevenLabs voice id).", "example": "af_heart" },
+          "ttsProvider": { "type": "string", "enum": ["kokoro", "elevenlabs"], "description": "Override the TTS provider for this request. Defaults to kokoro in dev mode, otherwise the server default.", "example": "kokoro" },
           "resolution": { "type": "string", "enum": ["1080p", "4K"], "example": "1080p" },
           "orientation": { "type": "string", "enum": ["landscape", "portrait"], "example": "landscape" },
           "theme": { "type": "string", "enum": ["light", "dark"], "example": "dark" },

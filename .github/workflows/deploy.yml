@@ -9,6 +9,8 @@ name: Deploy
 #   DEPLOY_USER  - SSH user (e.g. root)
 #   DEPLOY_KEY   - SSH private key with access to that user
 #   DEPLOY_PATH  - absolute path to the monorepo checkout (e.g. /root/codevideo-api)
+#   DOCKERHUB_USERNAME / DOCKERHUB_TOKEN - optional; only needed to pull the
+#     render-worker image (fullstackcraft/codevideo-cli) if that repo is private.
 #
 # Pre-reqs before enabling (see DEPLOYMENT.md):
 #   - commit the server's local nginx/conf/api.fullstackcraft.com.conf edit, or
@@ -39,5 +41,11 @@ jobs:
             cd "${{ secrets.DEPLOY_PATH }}"
             git fetch origin main
             git pull --ff-only origin main
+            # Authenticate to Docker Hub only if creds are set (needed when the
+            # codevideo-cli image repo is private); otherwise the public pull works.
+            if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+              echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            fi
+            docker compose pull            # fetch the pinned render-worker image
             docker compose up -d --build
             docker image prune -f

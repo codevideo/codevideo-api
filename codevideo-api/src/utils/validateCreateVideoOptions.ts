@@ -2,6 +2,7 @@ import { ICodeVideoIDEProps } from "@fullstackcraftllc/codevideo-types";
 
 export type VideoResolution = "1080p" | "4K";
 export type VideoOrientation = "landscape" | "portrait";
+export type TtsProvider = "kokoro" | "elevenlabs";
 
 /**
  * Curated, API-safe options for /create-video-v3.
@@ -14,6 +15,9 @@ export type VideoOrientation = "landscape" | "portrait";
 export interface ICreateVideoOptions {
   // text-to-speech: overrides the active provider's default voice
   voiceId?: string;
+  // text-to-speech provider override. Defaults to kokoro in dev mode, else the
+  // CODEVIDEO_TTS_PROVIDER env (elevenlabs in production).
+  ttsProvider?: TtsProvider;
 
   // recording dimensions. Carried in manifest.videoOptions for the CLI worker;
   // inert until the worker reads them (see plan Tier 2).
@@ -50,6 +54,7 @@ export interface ValidateOptionsResult {
 
 const RESOLUTIONS: VideoResolution[] = ["1080p", "4K"];
 const ORIENTATIONS: VideoOrientation[] = ["landscape", "portrait"];
+const TTS_PROVIDERS: TtsProvider[] = ["kokoro", "elevenlabs"];
 
 const STRING_FIELDS = ["voiceId", "mouseColor", "defaultLanguage"] as const;
 const BOOLEAN_FIELDS = ["withCaptions", "isFileExplorerVisible", "isTerminalVisible"] as const;
@@ -98,6 +103,13 @@ export const validateCreateVideoOptions = (raw: unknown): ValidateOptionsResult 
       return { valid: false, error: "options.theme must be 'light' or 'dark'.", options };
     }
     options.theme = o.theme;
+  }
+
+  if (o.ttsProvider !== undefined) {
+    if (!TTS_PROVIDERS.includes(o.ttsProvider as TtsProvider)) {
+      return { valid: false, error: `options.ttsProvider must be one of: ${TTS_PROVIDERS.join(", ")}.`, options };
+    }
+    options.ttsProvider = o.ttsProvider as TtsProvider;
   }
 
   for (const key of STRING_FIELDS) {

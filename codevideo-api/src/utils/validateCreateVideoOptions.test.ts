@@ -31,6 +31,7 @@ describe("validateCreateVideoOptions", () => {
   it("accepts the documented allowlist", () => {
     const input = {
       voiceId: "af_heart",
+      ttsProvider: "elevenlabs",
       resolution: "4K",
       orientation: "portrait",
       theme: "light",
@@ -55,6 +56,7 @@ describe("validateCreateVideoOptions", () => {
     expect(validateCreateVideoOptions({ resolution: "720p" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ orientation: "sideways" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ theme: "midnight" }).valid).toBe(false);
+    expect(validateCreateVideoOptions({ ttsProvider: "festival" }).valid).toBe(false);
   });
 
   it("type-checks strings, booleans, and positive numbers", () => {

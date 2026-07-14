@@ -27,8 +27,10 @@ services:
     image: codevideo-api
     container_name: codevideo-api
     # exposed on the docker network only (nginx proxies to codevideo-api:7000),
-    # NOT published to the host — so the host render worker (codevideo -m serve)
-    # can own host :7000 for its manifest server (/get-manifest-v3).
+    # not published to the host. The render worker is now the codevideo-cli
+    # container (below); its :7000/:7001 are container-internal, so there's no
+    # host-port contention to design around. The local override publishes :7000
+    # for dev.
     expose:
       - "7000"
     restart: always
@@ -44,11 +46,11 @@ services:
     depends_on:
       - codevideo-tts
 
-  # The old gatsby-static-server (host :7001) was removed: the render worker
-  # (codevideo -m serve, a host systemd process) bundles its own static server
-  # on :7001 serving the refreshed embedded IDE, so this container was redundant
-  # and squatted the port the worker needs. It's render-only (no nginx route);
-  # re-add only if a public path ever needs it.
+  # The old gatsby-static-server (host :7001) was removed: the render worker (the
+  # codevideo-cli container, below) bundles its own static server on :7001 serving
+  # the embedded IDE, so this container was redundant. Now that the worker is
+  # containerized its :7001 is container-internal anyway. Render-only (no nginx
+  # route); re-add only if a public path ever needs it.
 
   languagetool:
     image: erikvl87/languagetool
@@ -81,6 +83,30 @@ services:
     environment:
       - PORT=3000
       - HF_HOME=/app/.hf-cache
+
+  # Render worker — the codevideo-cli Go binary in serve mode, pulled from Docker
+  # Hub (built from the separate codevideo/codevideo-cli repo, not a local build
+  # context). It watches the shared tmp/v3 render queue, records each manifest with
+  # headless Chrome, then uploads the mp4 to S3, emails the user (Clerk), posts to
+  # Slack, and decrements tokens. Coupled to the API only through the tmp/v3 bind
+  # mount — they never call each other. One worker drains both prod and staging
+  # (both API services write into the same tmp/v3/new).
+  codevideo-cli:
+    image: fullstackcraft/codevideo-cli:0.0.8   # pinned; bump per codevideo-cli release
+    container_name: codevideo-cli
+    restart: always
+    init: true            # reap orphaned Chromium children (the leak noted in DEPLOYMENT.md)
+    shm_size: "1gb"       # headless Chrome needs more than the 64MB default /dev/shm
+    networks:
+      - codevideo-network
+    volumes:
+      - ./tmp/v3/:/work/tmp/v3/   # same host dir the API mounts — the shared render queue
+    env_file: .env               # S3, Clerk, Slack, Mailjet, TTS creds from the central env
+    environment:
+      - CODEVIDEO_WORK_DIR=/work/tmp/v3
+      - TTS_SERVICE_URL=http://codevideo-tts:3000   # kokoro path, mirrors the API
+    depends_on:
+      - codevideo-tts
 
   # Genie generation backend (LLM -> streamed CodeVideo actions), ./codevideo-genie;
   # nginx proxies /genie here. One port (3001) serves both the HTTP trigger and the
