@@ -135,6 +135,8 @@ services:
       dockerfile: Dockerfile
     image: nginx:latest
     container_name: nginx
+    # Reload nginx every 6 h so it picks up any newly-renewed TLS certs.
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     ports:
       - "80:80"
       - "443:443"
@@ -152,6 +154,8 @@ services:
 
   certbot:
     image: certbot/certbot:latest
+    # Attempt renewal every 12 h; certbot only acts when < 30 days remain.
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     volumes:
       - ./certbot/www/:/var/www/certbot/:rw
       - ./certbot/conf/:/etc/letsencrypt/:rw
