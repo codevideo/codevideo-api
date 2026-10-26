@@ -1,20 +1,22 @@
 import crypto from "crypto";
 import { clerkClient } from "@clerk/express";
+import { KEY_PREFIX, createKeyMaterial, sha256 } from "./apiKeyFormat.js";
 
 // API keys are stored (hashed) in the user's Clerk PRIVATE metadata — never
 // publicMetadata, which the client can read. The userId is embedded in the key
 // itself so validation needs no database/lookup: parse the userId, load that
 // user, and compare the hashed secret against their stored keys.
 //
-// Key format:  cvk_<base64url(userId)>.<base64url(secret)>
+// Key format:  cvk_<base64url(userId)>.<base64url(secret)> (see apiKeyFormat.ts)
 // Stored:      { id, name, prefix, hash: sha256(secret), createdAt, lastUsedAt }
-
-const KEY_PREFIX = "cvk_";
 
 export interface ApiKeyRecord {
   id: string;
   name: string;
-  prefix: string; // first chars of the plaintext, for display only
+  // Display only: "cvk_…" + the first chars of the secret. Keys created before
+  // that change hold the first 14 chars of the plaintext, which is the same
+  // for all of a user's keys.
+  prefix: string;
   hash: string; // sha256(secret), hex
   createdAt: string;
   lastUsedAt: string | null;
@@ -22,8 +24,6 @@ export interface ApiKeyRecord {
 
 /** What we return to the client — never the hash. */
 export type ApiKeySummary = Omit<ApiKeyRecord, "hash">;
-
-const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
 
 const readKeys = (user: { privateMetadata?: unknown }): ApiKeyRecord[] => {
   const meta = user.privateMetadata as { apiKeys?: ApiKeyRecord[] } | undefined;
@@ -41,13 +41,12 @@ export async function generateApiKey(
   userId: string,
   name: string
 ): Promise<{ plaintext: string; record: ApiKeySummary }> {
-  const secret = crypto.randomBytes(24).toString("base64url");
-  const plaintext = `${KEY_PREFIX}${Buffer.from(userId, "utf8").toString("base64url")}.${secret}`;
+  const { plaintext, prefix, hash: secretHash } = createKeyMaterial(userId);
   const record: ApiKeyRecord = {
     id: crypto.randomUUID(),
     name: name.trim() || "API key",
-    prefix: plaintext.slice(0, 14),
-    hash: sha256(secret),
+    prefix,
+    hash: secretHash,
     createdAt: new Date().toISOString(),
     lastUsedAt: null,
   };
