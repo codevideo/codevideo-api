@@ -13,7 +13,11 @@ name = Path(sys.argv[0]).name
 a = sys.argv[1:]
 with open(os.environ['CALL_LOG'], 'a') as f:
     f.write(json.dumps([name] + a) + '\\n')
-if name == 'git':
+if name == 'pgrep':
+    if os.environ.get('FAIL_STAGE') == 'legacy':
+        print('123 /root/codevideo-api/worker/codevideo -m serve')
+    else: sys.exit(1)
+elif name == 'git':
     if a[0] == 'rev-parse': print('abc123')
     elif os.environ.get('FAIL_STAGE') == 'dirty': print(' M config')
 elif name == 'docker':
@@ -39,7 +43,7 @@ class DeployTests(unittest.TestCase):
             root = Path(tmp)
             bindir = root / 'bin'
             bindir.mkdir()
-            for name in ('docker', 'git', 'curl', 'sleep'):
+            for name in ('docker', 'git', 'curl', 'sleep', 'pgrep'):
                 executable = bindir / name
                 executable.write_text(MOCK)
                 executable.chmod(0o755)
@@ -47,7 +51,11 @@ class DeployTests(unittest.TestCase):
                 (root / name).write_text('SECRET=never-print-this\n')
             conf = root / 'nginx/conf'
             conf.mkdir(parents=True)
-            (conf / 'test.conf').write_text('# no TLS paths in this fixture\n')
+            (conf / 'test.conf').write_text(
+                'ssl_certificate /etc/nginx/ssl/live/missing/fullchain.pem;\n'
+                if failure == 'certificate' else '# no TLS paths in this fixture\n')
+            if failure == 'environment':
+                (root / '.env.staging').unlink()
             env = dict(os.environ, PATH=str(bindir) + os.pathsep + os.environ['PATH'],
                        CALL_LOG=str(root / 'calls'), FAIL_STAGE=failure)
             env.pop('DOCKERHUB_USERNAME', None)
@@ -75,7 +83,7 @@ class DeployTests(unittest.TestCase):
         self.assertFalse(any('prune' in c for c in calls))
 
     def test_failed_pull_or_build_never_recreates_containers(self):
-        for failure in ('pull', 'build', 'dirty'):
+        for failure in ('pull', 'build', 'dirty', 'certificate', 'environment', 'legacy'):
             with self.subTest(failure=failure):
                 result, calls = self.run_deploy(failure)
                 self.assertNotEqual(result.returncode, 0)

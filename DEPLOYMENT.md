@@ -128,3 +128,8 @@ present in that revision using `docker compose -f docker-compose.yml up -d
 --no-build --pull never <explicit-service-list>`, excluding Certbot. If the prior
 stack used a bare dispatcher instead of a worker container, do not run both queue
 consumers. Verify nginx, HTTPS, and queue ownership before resuming renders.
+
+Before the first container-worker deployment, inspect the existing host worker
+(`/root/codevideo-api/worker/codevideo -m serve`) and in-flight jobs. The deploy
+refuses to start while that legacy consumer is running. Retire it safely only
+after the replacement image is verified; never run both against `tmp/v3/new`.

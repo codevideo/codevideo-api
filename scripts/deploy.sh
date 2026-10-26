@@ -24,6 +24,7 @@ trap diagnostics ERR
 echo '=== Validate prerequisites ==='
 command -v curl >/dev/null
 command -v python3 >/dev/null
+command -v pgrep >/dev/null
 docker info >/dev/null
 docker compose version
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] || fail 'Reconcile tracked checkout edits before deploying.'
@@ -31,6 +32,10 @@ for file in .env .env.staging; do
   [[ -s "$file" ]] || fail "Missing or empty $file; provision it on the server."
 done
 "${compose[@]}" config --quiet
+# The pre-container worker must not consume the same queue alongside this stack.
+if pgrep -af '(^|/)(go-video-dispatcher|worker/codevideo)([[:space:]]|$)'; then
+  fail 'Legacy host worker is running. Inspect in-flight jobs and retire it safely before starting the container worker.'
+fi
 # Match every active TLS certificate directive, including additional vhosts.
 while read -r certificate; do
   case "$certificate" in
