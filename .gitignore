@@ -26,3 +26,5 @@ docker-compose.override.yml
 .DS_Store
 *.log
 nohup.out
+.deploy-history/
+**/__pycache__/

@@ -29,23 +29,35 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Deploy over SSH (build on server)
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DEPLOY_REVISION: ${{ github.sha }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          command_timeout: 30m
+          envs: DEPLOY_PATH,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,DEPLOY_REVISION
           script: |
             set -euo pipefail
-            cd "${{ secrets.DEPLOY_PATH }}"
-            git fetch origin main
-            git pull --ff-only origin main
-            # Authenticate to Docker Hub only if creds are set (needed when the
-            # codevideo-cli image repo is private); otherwise the public pull works.
-            if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
-              echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            echo '=== Validate checkout ==='
+            cd "${DEPLOY_PATH:?DEPLOY_PATH must be set}"
+            if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+              echo 'Tracked server edits must be backed up and reconciled before deployment.' >&2
+              git diff --stat
+              exit 1
             fi
-            docker compose pull            # fetch the pinned render-worker image
-            docker compose up -d --build
-            docker image prune -f
+            export PREVIOUS_REVISION="$(git rev-parse HEAD)"
+            git fetch origin main
+            if [ "$(git rev-parse origin/main)" != "$DEPLOY_REVISION" ]; then
+              echo 'This run is stale or is not main; deploy the latest main revision.' >&2
+              exit 1
+            fi
+            git pull --ff-only origin main
+            bash scripts/deploy.sh

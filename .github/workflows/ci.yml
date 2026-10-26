@@ -9,6 +9,13 @@ on:
     branches-ignore: [main]
 
 jobs:
+  deployment-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n scripts/deploy.sh
+      - run: python3 -m unittest discover -s scripts/tests -v
+
   api:
     runs-on: ubuntu-latest
     defaults:
