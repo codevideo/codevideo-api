@@ -48,6 +48,10 @@ jobs:
             set -euo pipefail
             echo '=== Validate checkout ==='
             cd "${DEPLOY_PATH:?DEPLOY_PATH must be set}"
+            if [ "$(git branch --show-current)" != main ]; then
+              echo 'The deployment checkout must be on main.' >&2
+              exit 1
+            fi
             if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
               echo 'Tracked server edits must be backed up and reconciled before deployment.' >&2
               git diff --stat
