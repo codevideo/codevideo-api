@@ -64,6 +64,34 @@ starts from facts rather than memory.
 - [x] Supervise the `codevideo -m serve` worker — done via the `codevideo-cli`
       compose service (`restart: always` + `init: true`), not a host systemd unit
 
+## Experimental deterministic renderer rollout
+
+The deterministic renderer is developed in the sibling `codevideo-types`,
+`codevideo-ide-react` and `codevideo-cli` repositories. It remains opt-in; existing
+manifests and the worker default use realtime capture. No new public API control
+is introduced by this change.
+
+Release types first, then update/release React, rebuild its Gatsby `/v3` page,
+copy the generated site into the CLI's embedded `public/`, and release the CLI
+binary **with** `renderFramesV1.js`, `virtualClock.js` and their Node dependencies.
+Only then update the `codevideo-cli` image pin in `docker-compose.yml` to the
+published image. The current pin is deliberately unchanged until that release
+exists. The runtime must include Chrome, Node, FFmpeg and ffprobe.
+
+A controlled manifest can set `renderMode: "deterministic"`, `renderSeed` and
+`renderWorkers`. Mode precedence is manifest → `CODEVIDEO_RENDER_MODE` → realtime.
+Use a separate queue/worker for staging experiments: this compose stack's worker
+currently consumes **both production and staging** from `tmp/v3/new`. Setting its
+`CODEVIDEO_RENDER_MODE=deterministic` would opt all manifests without explicit mode
+into the experiment. Keep that shared default realtime.
+
+Browser concurrency multiplies across jobs. Start with one concurrent job and
+one browser worker, inspect trace/timing sidecars, then tune against available RAM.
+Do not copy the M3 Max's local 4/8-worker settings onto the smaller production
+host without measuring. External websites and executable previews remain best
+effort under virtual time. The CLI's `docs/deterministic-rendering.md` documents
+limitations, local golden benchmarks and the full release checklist.
+
 ## Reliable Actions deployment
 
 The API repository deploys the stack; the separate `codevideo/codevideo-cli`
