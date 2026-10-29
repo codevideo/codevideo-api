@@ -19,8 +19,9 @@ export interface ICreateVideoOptions {
   // CODEVIDEO_TTS_PROVIDER env (elevenlabs in production).
   ttsProvider?: TtsProvider;
 
-  // recording dimensions. Carried in manifest.videoOptions for the CLI worker;
-  // inert until the worker reads them (see plan Tier 2).
+  // recording dimensions. Carried in manifest.videoOptions for the CLI worker,
+  // which honors orientation from 0.0.12 on. Resolution is still inert: a 4K
+  // job would also need the render page's resolution prop.
   resolution?: VideoResolution;
   orientation?: VideoOrientation;
 
@@ -34,6 +35,11 @@ export interface ICreateVideoOptions {
   mouseColor?: string;
   isFileExplorerVisible?: boolean;
   isTerminalVisible?: boolean;
+  // portrait layouts: tabs, minimap and cursor can be hidden independently
+  isEditorTabsVisible?: boolean;
+  isMinimapVisible?: boolean;
+  isMouseVisible?: boolean;
+  wordWrap?: "on" | "off";
   keyboardTypingPauseMs?: number;
   standardPauseMs?: number;
   longPauseMs?: number;
@@ -57,7 +63,14 @@ const ORIENTATIONS: VideoOrientation[] = ["landscape", "portrait"];
 const TTS_PROVIDERS: TtsProvider[] = ["kokoro", "elevenlabs"];
 
 const STRING_FIELDS = ["voiceId", "mouseColor", "defaultLanguage"] as const;
-const BOOLEAN_FIELDS = ["withCaptions", "isFileExplorerVisible", "isTerminalVisible"] as const;
+const BOOLEAN_FIELDS = [
+  "withCaptions",
+  "isFileExplorerVisible",
+  "isTerminalVisible",
+  "isEditorTabsVisible",
+  "isMinimapVisible",
+  "isMouseVisible",
+] as const;
 const POSITIVE_NUMBER_FIELDS = [
   "fontSizePx",
   "fileExplorerWidth",
@@ -103,6 +116,13 @@ export const validateCreateVideoOptions = (raw: unknown): ValidateOptionsResult 
       return { valid: false, error: "options.theme must be 'light' or 'dark'.", options };
     }
     options.theme = o.theme;
+  }
+
+  if (o.wordWrap !== undefined) {
+    if (o.wordWrap !== "on" && o.wordWrap !== "off") {
+      return { valid: false, error: "options.wordWrap must be 'on' or 'off'.", options };
+    }
+    options.wordWrap = o.wordWrap;
   }
 
   if (o.ttsProvider !== undefined) {
@@ -158,6 +178,10 @@ export const buildCodeVideoIDEProps = (options: ICreateVideoOptions): Partial<IC
   if (options.mouseColor !== undefined) props.mouseColor = options.mouseColor;
   if (options.isFileExplorerVisible !== undefined) props.isFileExplorerVisible = options.isFileExplorerVisible;
   if (options.isTerminalVisible !== undefined) props.isTerminalVisible = options.isTerminalVisible;
+  if (options.isEditorTabsVisible !== undefined) props.isEditorTabsVisible = options.isEditorTabsVisible;
+  if (options.isMinimapVisible !== undefined) props.isMinimapVisible = options.isMinimapVisible;
+  if (options.isMouseVisible !== undefined) props.isMouseVisible = options.isMouseVisible;
+  if (options.wordWrap !== undefined) props.wordWrap = options.wordWrap;
   if (options.keyboardTypingPauseMs !== undefined) props.keyboardTypingPauseMs = options.keyboardTypingPauseMs;
   if (options.standardPauseMs !== undefined) props.standardPauseMs = options.standardPauseMs;
   if (options.longPauseMs !== undefined) props.longPauseMs = options.longPauseMs;
