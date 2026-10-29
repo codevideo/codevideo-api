@@ -98,4 +98,11 @@ while read -r container restarts; do
   [[ "$(docker inspect --format '{{.State.Running}} {{.RestartCount}}' "$container")" == "true $restarts" ]] || fail "Container stopped or restarted: $container"
 done < "$recovery_dir/startup-counts"
 "${compose[@]}" ps
+stage=cleanup
+# Each build here leaves the previous image dangling. Keep a week of them for
+# rollback (DEPLOYMENT.md, Recovery) and prune the rest; a prune problem must not
+# fail a deploy that already passed verification.
+echo '=== Prune dangling images and build cache older than 7 days ==='
+docker image prune -f --filter until=168h || echo 'Image prune skipped' >&2
+docker builder prune -f --filter until=168h || echo 'Build cache prune skipped' >&2
 echo 'Deployment service checks passed. Complete the controlled test-account render before accepting the rollout.'

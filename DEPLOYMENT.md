@@ -129,7 +129,14 @@ Provision `.env`, `.env.staging`, and the certificates referenced by active ngin
 vhosts on the server first. Compose configuration is validated without displaying
 environment values. Pulls skip locally buildable images; all builds finish before
 container replacement. Certbot is a manual maintenance command, not a daemon
-started by deployment. No image pruning runs during deploy.
+started by deployment. After verification passes, deploy prunes dangling images
+and build cache older than 7 days; tagged images and anything newer stay.
+
+Disk hygiene (FUL-265): every service's json-file log is capped at 3 x 50 MB in
+`docker-compose.yml`, and the production API (`TMP_VIDEO_CLEANUP=true`) removes
+entries older than 24 h from `tmp/v3/video` at startup and hourly, because the
+worker leaves each job's webm/mp4 there after uploading to S3. The host disk is
+shared with other projects, so check `df -h /` when renders or deploys fail.
 
 The SSH command timeout is 30 minutes. Verification checks HTTPS, nginx syntax,
 TTS model readiness, Genie's listener, worker queue startup, and container restart
@@ -144,7 +151,8 @@ expected completion behavior before accepting the rollout.
 
 Each deploy records the previous and target Git revisions and running container
 image IDs under `.deploy-history/<run>/` before pulling/building. Keep these files
-and old Docker images until the controlled render passes. After a startup or
+and old Docker images until the controlled render passes; deploys only prune
+dangling images older than 7 days, so roll back within that window. After a startup or
 verification failure, inspect `docker compose -f docker-compose.yml ps -a` and the
 private bounded failure log. Do not blindly retry or automatically roll back a
 worker that may already be consuming the shared production/staging queue.

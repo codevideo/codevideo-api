@@ -16,6 +16,7 @@ import { authClerkOrApiKey } from "./auth/authClerkOrApiKey.js";
 import { generateApiKey, listApiKeys, revokeApiKey } from "./auth/apiKeys.js";
 import 'dotenv/config'
 import { LanguageToolResponse } from "./languagetooltypes/languagetooltypes.js";
+import { scheduleTmpVideoCleanup } from "./utils/scheduleTmpVideoCleanup.js";
 
 // Define the CORS options
 const corsOptions = {
@@ -212,4 +213,5 @@ app.listen(port, () => {
   if (isDevMode()) {
     console.warn("⚠️  DEV MODE (ENVIRONMENT=development): auth + token checks disabled, no S3 (audio inlined as data URIs), TTS defaults to kokoro. Do not use in production.");
   }
+  scheduleTmpVideoCleanup(dirname);
 });
