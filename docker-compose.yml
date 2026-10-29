@@ -92,7 +92,7 @@ services:
   # mount — they never call each other. One worker drains both prod and staging
   # (both API services write into the same tmp/v3/new).
   codevideo-cli:
-    image: fullstackcraft/codevideo-cli:0.0.8   # pinned; bump per codevideo-cli release
+    image: fullstackcraft/codevideo-cli:0.0.9   # pinned; bump per codevideo-cli release
     container_name: codevideo-cli
     restart: always
     init: true            # reap orphaned Chromium children (the leak noted in DEPLOYMENT.md)
