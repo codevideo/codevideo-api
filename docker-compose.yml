@@ -1,3 +1,11 @@
+# Docker's json-file logs have no size limit by default (languagetool's reached
+# 230 MB), so every service caps its log at 3 x 50 MB.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   staging-codevideo-api:
     build:
@@ -8,6 +16,7 @@ services:
     ports:
       - "6999:6999"
     restart: always
+    logging: *default-logging
     networks:
       - codevideo-network
     volumes:
@@ -34,6 +43,7 @@ services:
     expose:
       - "7000"
     restart: always
+    logging: *default-logging
     networks:
       - codevideo-network
     volumes:
@@ -43,6 +53,9 @@ services:
     # self-hosted TTS service below (default stays elevenlabs until you flip it).
     environment:
       - TTS_SERVICE_URL=http://codevideo-tts:3000
+      # Sweep the worker's leftover videos from tmp/v3/video (FUL-265). Staging
+      # mounts the same tmp/v3, so only this instance sweeps.
+      - TMP_VIDEO_CLEANUP=true
     depends_on:
       - codevideo-tts
 
@@ -58,6 +71,7 @@ services:
     ports:
       - "8010:8010"
     restart: always
+    logging: *default-logging
     networks:
       - codevideo-network
 
@@ -70,6 +84,7 @@ services:
     image: codevideo-tts
     container_name: codevideo-tts
     restart: always
+    logging: *default-logging
     networks:
       - codevideo-network
     volumes:
@@ -92,9 +107,10 @@ services:
   # mount — they never call each other. One worker drains both prod and staging
   # (both API services write into the same tmp/v3/new).
   codevideo-cli:
-    image: fullstackcraft/codevideo-cli:0.0.10   # pinned; bump per codevideo-cli release
+    image: fullstackcraft/codevideo-cli:0.0.11   # pinned; bump per codevideo-cli release
     container_name: codevideo-cli
     restart: always
+    logging: *default-logging
     init: true            # reap orphaned Chromium children (the leak noted in DEPLOYMENT.md)
     shm_size: "1gb"       # headless Chrome needs more than the 64MB default /dev/shm
     networks:
@@ -119,6 +135,7 @@ services:
     image: codevideo-genie
     container_name: codevideo-genie
     restart: always
+    logging: *default-logging
     networks:
       - codevideo-network
     expose:
@@ -141,6 +158,7 @@ services:
       - "80:80"
       - "443:443"
     restart: always
+    logging: *default-logging
     networks:
       - codevideo-network
     depends_on:
@@ -154,6 +172,7 @@ services:
 
   certbot:
     image: certbot/certbot:latest
+    logging: *default-logging
     # Attempt renewal every 12 h; certbot only acts when < 30 days remain.
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     volumes:
