@@ -42,6 +42,10 @@ describe("validateCreateVideoOptions", () => {
       mouseColor: "red",
       isFileExplorerVisible: true,
       isTerminalVisible: false,
+      isEditorTabsVisible: false,
+      isMinimapVisible: false,
+      isMouseVisible: false,
+      wordWrap: "on",
       keyboardTypingPauseMs: 20,
       standardPauseMs: 500,
       longPauseMs: 4000,
@@ -57,11 +61,13 @@ describe("validateCreateVideoOptions", () => {
     expect(validateCreateVideoOptions({ orientation: "sideways" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ theme: "midnight" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ ttsProvider: "festival" }).valid).toBe(false);
+    expect(validateCreateVideoOptions({ wordWrap: "auto" }).valid).toBe(false);
   });
 
   it("type-checks strings, booleans, and positive numbers", () => {
     expect(validateCreateVideoOptions({ voiceId: "" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ withCaptions: "yes" }).valid).toBe(false);
+    expect(validateCreateVideoOptions({ isMouseVisible: "no" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ fontSizePx: 0 }).valid).toBe(false);
     expect(validateCreateVideoOptions({ fontSizePx: -10 }).valid).toBe(false);
     expect(validateCreateVideoOptions({ standardPauseMs: "fast" }).valid).toBe(false);
@@ -83,6 +89,25 @@ describe("buildCodeVideoIDEProps", () => {
     expect(props).not.toHaveProperty("voiceId");
     expect(props).not.toHaveProperty("resolution");
     expect(props).not.toHaveProperty("orientation");
+  });
+
+  it("maps the portrait layout fields so a portrait video can hide its chrome", () => {
+    const { options } = validateCreateVideoOptions({
+      orientation: "portrait",
+      isFileExplorerVisible: false,
+      isEditorTabsVisible: false,
+      isMinimapVisible: false,
+      isMouseVisible: false,
+      wordWrap: "on",
+    });
+    expect(buildCodeVideoIDEProps(options)).toEqual({
+      isFileExplorerVisible: false,
+      isEditorTabsVisible: false,
+      isMinimapVisible: false,
+      isMouseVisible: false,
+      wordWrap: "on",
+    });
+    expect(buildVideoOptions(options)).toEqual({ orientation: "portrait" });
   });
 
   it("returns an empty object when no layout fields are set", () => {
