@@ -80,7 +80,20 @@ class DeployTests(unittest.TestCase):
         self.assertIn('--no-build', operations[up])
         self.assertIn('never', operations[up])
         self.assertNotIn('certbot', operations[up])
-        self.assertFalse(any('prune' in c for c in calls))
+
+    def test_success_prunes_only_week_old_dangling_images_after_verification(self):
+        result, calls = self.run_deploy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        prunes = [c for c in calls if 'prune' in c]
+        self.assertEqual(prunes, [
+            ['docker', 'image', 'prune', '-f', '--filter', 'until=168h'],
+            ['docker', 'builder', 'prune', '-f', '--filter', 'until=168h'],
+        ])
+        # Rollback images and volumes must survive: never --all, system or volume prunes.
+        self.assertFalse(any(flag in c for c in prunes for flag in ('-a', '--all', 'system', 'volume')))
+        soak_checks = [i for i, c in enumerate(calls)
+                       if c[:2] == ['docker', 'inspect'] and '.State.Running' in c[3]]
+        self.assertLess(soak_checks[-1], calls.index(prunes[0]))
 
     def test_failed_pull_or_build_never_recreates_containers(self):
         for failure in ('pull', 'build', 'dirty', 'certificate', 'environment', 'legacy'):
@@ -88,11 +101,13 @@ class DeployTests(unittest.TestCase):
                 result, calls = self.run_deploy(failure)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(any(c[:2] == ['docker', 'compose'] and 'up' in c for c in calls))
+                self.assertFalse(any('prune' in c for c in calls))
 
     def test_restart_fails_verification(self):
-        result, _ = self.run_deploy('restart')
+        result, calls = self.run_deploy('restart')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('stopped or restarted', result.stderr)
+        self.assertFalse(any('prune' in c for c in calls))
 
 
 if __name__ == '__main__':
