@@ -75,7 +75,8 @@ Release types first, then update/release React, rebuild its Gatsby `/v3` page,
 copy the generated site into the CLI's embedded `public/`, and release the CLI
 binary **with** `renderFramesV1.js`, `virtualClock.js` and their Node dependencies.
 Only then update the `codevideo-cli` image pin in `docker-compose.yml` to the
-published image. That release is 0.0.9 (2026-10-29), which the pin now uses.
+published image. That release is 0.0.9 (2026-10-29); the pin now uses 0.0.10,
+which moved the image to Chromium 142 after 0.0.9 failed every realtime render.
 The runtime must include Chrome, Node, FFmpeg and ffprobe.
 
 A controlled manifest can set `renderMode: "deterministic"`, `renderSeed` and
