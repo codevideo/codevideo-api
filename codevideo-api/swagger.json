@@ -71,6 +71,129 @@
           }
         }
       }
+    },
+    "/texttospeech": {
+      "post": {
+        "summary": "Generate one speech take (no token charge)",
+        "description": "Defaults to Kokoro. Limited to 30 requests per minute and 300 per UTC day per authenticated user. ElevenLabs requires the caller\u2019s own key; it is never stored or returned.",
+        "security": [
+          {
+            "ClerkBearer": []
+          },
+          {
+            "CodeVideoApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "kokoro",
+                      "elevenlabs"
+                    ],
+                    "default": "kokoro"
+                  },
+                  "voiceId": {
+                    "type": "string",
+                    "description": "Curated English Kokoro voice; default KOKORO_VOICE or af_heart. ElevenLabs requires 10\u201340 alphanumeric characters."
+                  },
+                  "speed": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 2,
+                    "default": 1,
+                    "description": "Kokoro speed. ElevenLabs currently requires 1."
+                  },
+                  "elevenLabsApiKey": {
+                    "type": "string",
+                    "writeOnly": true,
+                    "description": "Required only for ElevenLabs. Sent to ElevenLabs, never stored or returned."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "MP3 take metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "mp3Url",
+                    "assetId",
+                    "provider",
+                    "voiceId",
+                    "speed"
+                  ],
+                  "properties": {
+                    "mp3Url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "assetId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "kokoro",
+                        "elevenlabs"
+                      ]
+                    },
+                    "voiceId": {
+                      "type": "string"
+                    },
+                    "speed": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or rejected ElevenLabs key"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Per-user speech limit reached",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until a request can be retried"
+              }
+            }
+          },
+          "502": {
+            "description": "Speech provider failed"
+          },
+          "503": {
+            "description": "Kokoro is not configured"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -94,6 +217,14 @@
           },
           "options": {
             "$ref": "#/components/schemas/CreateVideoOptions"
+          },
+          "audioItems": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/SpeechAudioItem"
+            },
+            "description": "Approved takes matched by exact text. Other speech is synthesized normally."
           }
         }
       },
@@ -101,22 +232,88 @@
         "type": "object",
         "description": "Optional render settings. Unknown keys are ignored. resolution and orientation are accepted now but only take effect once the render worker is updated.",
         "properties": {
-          "voiceId": { "type": "string", "description": "Overrides the active TTS provider's default voice (Kokoro voice name or ElevenLabs voice id).", "example": "af_heart" },
-          "ttsProvider": { "type": "string", "enum": ["kokoro", "elevenlabs"], "description": "Override the TTS provider for this request. Defaults to kokoro in dev mode, otherwise the server default.", "example": "kokoro" },
-          "resolution": { "type": "string", "enum": ["1080p", "4K"], "example": "1080p" },
-          "orientation": { "type": "string", "enum": ["landscape", "portrait"], "example": "landscape" },
-          "theme": { "type": "string", "enum": ["light", "dark"], "example": "dark" },
-          "withCaptions": { "type": "boolean", "example": true },
-          "fontSizePx": { "type": "number", "example": 26 },
-          "fileExplorerWidth": { "type": "number", "example": 400 },
-          "terminalHeight": { "type": "number", "example": 350 },
-          "mouseColor": { "type": "string", "example": "black" },
-          "isFileExplorerVisible": { "type": "boolean", "example": true },
-          "isTerminalVisible": { "type": "boolean", "example": true },
-          "keyboardTypingPauseMs": { "type": "number", "example": 40 },
-          "standardPauseMs": { "type": "number", "example": 200 },
-          "longPauseMs": { "type": "number", "example": 2000 },
-          "defaultLanguage": { "type": "string", "example": "javascript" }
+          "voiceId": {
+            "type": "string",
+            "description": "Overrides the active TTS provider's default voice (Kokoro voice name or ElevenLabs voice id).",
+            "example": "af_heart"
+          },
+          "ttsProvider": {
+            "type": "string",
+            "enum": [
+              "kokoro",
+              "elevenlabs"
+            ],
+            "description": "Override the TTS provider for this request. Defaults to kokoro in dev mode, otherwise the server default.",
+            "example": "kokoro"
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "1080p",
+              "4K"
+            ],
+            "example": "1080p"
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "landscape",
+              "portrait"
+            ],
+            "example": "landscape"
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark"
+            ],
+            "example": "dark"
+          },
+          "withCaptions": {
+            "type": "boolean",
+            "example": true
+          },
+          "fontSizePx": {
+            "type": "number",
+            "example": 26
+          },
+          "fileExplorerWidth": {
+            "type": "number",
+            "example": 400
+          },
+          "terminalHeight": {
+            "type": "number",
+            "example": 350
+          },
+          "mouseColor": {
+            "type": "string",
+            "example": "black"
+          },
+          "isFileExplorerVisible": {
+            "type": "boolean",
+            "example": true
+          },
+          "isTerminalVisible": {
+            "type": "boolean",
+            "example": true
+          },
+          "keyboardTypingPauseMs": {
+            "type": "number",
+            "example": 40
+          },
+          "standardPauseMs": {
+            "type": "number",
+            "example": 200
+          },
+          "longPauseMs": {
+            "type": "number",
+            "example": 2000
+          },
+          "defaultLanguage": {
+            "type": "string",
+            "example": "javascript"
+          }
         }
       },
       "RequestBody": {
@@ -158,6 +355,42 @@
       "textToSpeechOption": {
         "type": "string",
         "example": "festival"
+      },
+      "SpeechAudioItem": {
+        "type": "object",
+        "required": [
+          "text",
+          "mp3Url"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "mp3Url": {
+            "type": "string",
+            "format": "uri",
+            "description": "An approved CodeVideo /codevideo/texttospeech/<uuid>.mp3 asset; same-host /dev-audio/<uuid>.mp3 is accepted only in development."
+          },
+          "durationMs": {
+            "type": "number",
+            "exclusiveMinimum": true,
+            "minimum": 0,
+            "maximum": 3600000
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ClerkBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "CodeVideoApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
       }
     }
   }

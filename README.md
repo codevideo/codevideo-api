@@ -69,6 +69,35 @@ directly (Node 20+; the central `.env` is one level up).
   secrets listed in that file. See [DEPLOYMENT.md](DEPLOYMENT.md) for server state
   and pre-reqs.
 
+## Studio speech takes
+
+`POST /texttospeech` accepts a Clerk bearer token or a CodeVideo API key. Send
+`{ "text": "Hello", "provider": "kokoro", "voiceId": "af_heart", "speed": 1 }`.
+The response contains `{ mp3Url, assetId, provider, voiceId, speed }`. Kokoro is
+this endpoint's default, independent of the existing `CODEVIDEO_TTS_PROVIDER`
+render setting. English Kokoro voices are listed in
+`codevideo-api/src/tts/kokoroVoices.ts`; speed is 0.5–2.
+
+For ElevenLabs, send `provider: "elevenlabs"`, `voiceId` and your own
+`elevenLabsApiKey` (speed 1). The key is not stored or returned, and request
+bodies are omitted from Sentry error events. Speech generation costs no CodeVideo
+tokens and is limited per authenticated user to 30 requests per rolling minute
+and 300 per UTC day, held in memory and reset by API restarts.
+
+No new environment variables are required. The endpoint uses existing
+`TTS_SERVICE_URL`, optional internal `TTS_API_KEY`, optional `KOKORO_VOICE`, and
+existing S3 credentials. Compose supplies `TTS_SERVICE_URL`; outside Docker use
+`http://localhost:3000`. Production assets are unique immutable MP3s under
+`codevideo/texttospeech/` in the existing bucket. That prefix must be publicly
+readable for browser previews. In local development only, files live in
+`codevideo-api/tmp/audio/texttospeech/` and are served at `/dev-audio/`.
+
+`POST /create-video-v3` also accepts up to 500 `audioItems` with `text`, `mp3Url`
+and optional `durationMs`. Exact text matches reuse approved CodeVideo speech
+assets. Identical repeated takes are accepted; conflicting URLs for one text
+are rejected. Same-host dev assets are inlined in the manifest. Other speech
+uses the existing synthesis path, and projects without takes behave as before.
+
 ## Examples
 
 Each example is a complete request — replace `cvk_YOUR_KEY` and paste it into a

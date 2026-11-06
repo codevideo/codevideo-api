@@ -1,4 +1,4 @@
-import { IAction, ICodeVideoIDEProps, ICodeVideoManifest } from "@fullstackcraftllc/codevideo-types";
+import { IAction, IAudioItem, ICodeVideoIDEProps, ICodeVideoManifest } from "@fullstackcraftllc/codevideo-types";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import path from "path";
@@ -19,13 +19,14 @@ export const generateManifestFile = async (
     dirname: string,
     actions: Array<IAction>,
     userId: string,
-    options: ICreateVideoOptions = {}
+    options: ICreateVideoOptions = {},
+    provided: IAudioItem[] = []
 ) => {
     const uuid = uuidv4();
 
     // generate audio per author-speak action (voiceId / ttsProvider from options;
     // S3 in prod, inline data URI in dev — handled inside generateAudioItems)
-    const audioItems = await generateAudioItems(actions, options);
+    const audioItems = await generateAudioItems(actions, options, provided);
 
     // create manifest. We write an actions-based manifest (the render path the
     // CLI + example v3 page already consume): a course/lesson payload is
@@ -55,5 +56,7 @@ export const generateManifestFile = async (
     }
 
     // write the manifest to the tmp/v3/new folder using the uuid as the filename
-    fs.writeFileSync(path.join(dirname, "..", "tmp", "v3", "new", `${uuid}.json`), JSON.stringify(manifest));
+    const queue = path.join(dirname, "..", "tmp", "v3", "new");
+    fs.mkdirSync(queue, {recursive:true});
+    fs.writeFileSync(path.join(queue, `${uuid}.json`), JSON.stringify(manifest));
 }

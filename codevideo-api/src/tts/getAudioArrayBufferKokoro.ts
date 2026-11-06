@@ -10,10 +10,13 @@ import fetch from "isomorphic-fetch";
 export const getAudioArrayBufferKokoro = async (
   textToSpeak: string,
   serviceUrl: string,
-  voice?: string
+  voice?: string,
+  speed = 1,
 ): Promise<ArrayBuffer> => {
   const url = `${serviceUrl.replace(/\/$/, "")}/v1/audio/speech`;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (process.env.TTS_API_KEY) {
     headers.Authorization = `Bearer ${process.env.TTS_API_KEY}`;
   }
@@ -25,12 +28,12 @@ export const getAudioArrayBufferKokoro = async (
       input: textToSpeak,
       voice: voice || process.env.KOKORO_VOICE,
       response_format: "mp3",
+      speed,
     }),
   });
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`codevideo-tts ${response.status} from ${url}: ${detail}`);
+    throw new Error(`codevideo-tts returned HTTP ${response.status}`);
   }
   return await response.arrayBuffer();
 };

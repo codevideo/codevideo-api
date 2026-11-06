@@ -47,14 +47,13 @@ export const getAudioArrayBufferElevenLabs = async (textToSpeak: string, ttsApiK
       );
   
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        throw Object.assign(new Error(`ElevenLabs returned HTTP ${response.status}`), {status:response.status});
       }
   
       // return the array buffer
       return await response.arrayBuffer();
   
     } catch (error) {
-      console.error(error);
-      throw new Error("Error in getAudioArrayBufferElevenLabs " + error);
+      throw error;
     }
   }

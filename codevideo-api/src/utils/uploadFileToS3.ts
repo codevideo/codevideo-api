@@ -7,7 +7,8 @@ import {
 // Function to upload video to S3 - can also be used for uploading audio manifest
 export const uploadFileToS3 = async (
   videoBuffer: Buffer,
-  filename: string
+  filename: string,
+  options: {contentType?:string;cacheControl?:string} = {}
 ): Promise<string> => {
   const s3Client = new S3Client({
     region: "us-east-1",
@@ -21,6 +22,8 @@ export const uploadFileToS3 = async (
     Bucket: "fullstackcraft",
     Key: `codevideo/${filename}`,
     Body: videoBuffer,
+    ...(options.contentType ? {ContentType:options.contentType} : {}),
+    ...(options.cacheControl ? {CacheControl:options.cacheControl} : {}),
   };
 
   try {

@@ -1,3 +1,7 @@
+import { createTextToSpeechHandler,textToSpeechJsonErrorHandler } from './tts/textToSpeechRoute.js';
+import { DEV_AUDIO_DIRECTORY } from './tts/textToSpeechAssets.js';
+import { resolveProvidedAudioItems } from './tts/resolveProvidedAudioItems.js';
+import { TextToSpeechError } from './tts/validateTextToSpeechRequest.js';
 import express, { Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import path from "path";
@@ -49,7 +53,13 @@ const port = process.env.PORT;
 app.use(cors(corsOptions));
 
 // Middleware for parsing JSON bodies
-app.use(express.json());
+app.use('/texttospeech', express.json({limit:'16kb'}));
+app.use(express.json({limit:'5mb'}));
+app.use(textToSpeechJsonErrorHandler);
+// Clerk must initialize session state before any requireAuth/authClerkOrApiKey routes.
+if (!isDevMode()) app.use(clerkMiddleware());
+if(isDevMode()) app.use('/dev-audio',express.static(DEV_AUDIO_DIRECTORY,{dotfiles:'deny',index:false}));
+app.post('/texttospeech',authClerkOrApiKey,createTextToSpeechHandler());
 
 // Serve Swagger UI
 app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
@@ -143,7 +153,14 @@ app.post(
     }
 
     // this created manifest is picked up by the go based CLI tool running in serve mode.
-    await generateManifestFile(dirname, actions, userId, options);
+    try {
+      const provided=resolveProvidedAudioItems(req.body?.audioItems,{dev,origin:`${req.protocol}://${req.get('host')}`});
+      await generateManifestFile(dirname, actions, userId, options, provided);
+    } catch(error) {
+      if(error instanceof TextToSpeechError) return res.status(error.status).json({error:error.message});
+      // Avoid leaking/logging text, credentials, or provider responses.
+      return res.status(502).json({error:'Could not prepare audio for this video. Please try again.'});
+    }
 
     // return success - user will be notified when video is ready
     res.status(200).json({ message: "Video generation enqueued successfully" });
@@ -204,8 +221,6 @@ We're a software engineering company that Gets Stuff Done™. 🚀
 // app.use(Sentry.Handlers.errorHandler());
 Sentry.setupExpressErrorHandler(app);
 
-// clerk middleware
-app.use(clerkMiddleware())
 
 // Start the Express server
 app.listen(port, () => {

@@ -2,5 +2,11 @@ import * as Sentry from "@sentry/node";
 
 Sentry.init({
   dsn: "https://06811c81e57eae0621f15301cd253319@o4505623207149568.ingest.us.sentry.io/4506982569279488",
+  beforeSend(event) {
+    // Bodies may contain BYO ElevenLabs credentials. Omit all request data rather
+    // than trusting upstream serialization to preserve a redactable JSON shape.
+    if (event.request) delete event.request.data;
+    return event;
+  },
   tracesSampleRate: 0.5, //  Capture 50% of the transactions
 });

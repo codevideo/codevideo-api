@@ -16,5 +16,11 @@
   "extensionsToTreatAsEsm": [
     ".ts"
   ],
-  "transformIgnorePatterns": ["/node_modules/(?!(@fullstackcraftllc/codevideo-backend-engine)/)"]
+  "transformIgnorePatterns": [
+    "/node_modules/(?!(@fullstackcraftllc/codevideo-backend-engine)/)"
+  ],
+  "testPathIgnorePatterns": [
+    "/node_modules/",
+    "/dist/"
+  ]
 }
