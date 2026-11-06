@@ -20,6 +20,12 @@ if name == 'pgrep':
 elif name == 'git':
     if a[0] == 'rev-parse': print('abc123')
     elif os.environ.get('FAIL_STAGE') == 'dirty': print(' M config')
+elif name == 'curl' and os.environ.get('FAIL_STAGE') == 'transient502':
+    attempted = Path(os.environ['CALL_LOG'] + '.curl-attempted')
+    if not attempted.exists():
+        attempted.touch()
+        print('curl: (22) The requested URL returned error: 502', file=sys.stderr)
+        sys.exit(22)
 elif name == 'docker':
     if a[0] == 'inspect':
         fmt = a[2]
@@ -32,8 +38,11 @@ elif name == 'docker':
         a = a[3:]
         stage = a[0]
         if stage == os.environ.get('FAIL_STAGE'): sys.exit(17)
+        if stage == 'exec' and 'codevideo-cli' in a and os.environ.get('FAIL_STAGE') == 'worker_queue': sys.exit(17)
         if stage == 'ps' and '-q' in a: print('container-id')
-        if stage == 'logs': print('Watching for new manifest files')
+        if stage == 'logs':
+            print('Recent render completed' if os.environ.get('FAIL_STAGE') == 'old_worker_logs'
+                  else 'Watching for new manifest files')
 '''
 
 
@@ -102,6 +111,28 @@ class DeployTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(any(c[:2] == ['docker', 'compose'] and 'up' in c for c in calls))
                 self.assertFalse(any('prune' in c for c in calls))
+
+    def test_old_worker_logs_do_not_fail_a_healthy_deploy(self):
+        result, calls = self.run_deploy('old_worker_logs')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        # An unchanged worker can outlive its startup logs; test live state instead.
+        self.assertTrue(any(c[:2] == ['docker', 'compose'] and 'codevideo-cli' in c
+                            and 'exec' in c for c in calls))
+        self.assertFalse(any(c[:2] == ['docker', 'compose'] and 'logs' in c
+                             for c in calls))
+
+    def test_initial_api_502_is_retried_and_can_succeed(self):
+        result, calls = self.run_deploy('transient502')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len([c for c in calls if c[0] == 'curl']), 2)
+        self.assertIn('returned error: 502', result.stderr)
+        self.assertIn('Deployment service checks passed', result.stdout)
+
+    def test_worker_queue_failure_names_the_failing_check(self):
+        result, calls = self.run_deploy('worker_queue')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Deployment failed during worker-queue', result.stderr)
+        self.assertFalse(any('prune' in c for c in calls))
 
     def test_restart_fails_verification(self):
         result, calls = self.run_deploy('restart')

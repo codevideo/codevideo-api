@@ -83,11 +83,23 @@ retry() {
   done
   return 1
 }
+stage=api-readiness
+echo '=== Check public API readiness ==='
 retry curl --fail --silent --show-error --max-time 10 https://api.codevideo.io/ >/dev/null
+stage=tts-readiness
+echo '=== Check Kokoro readiness ==='
 retry "${compose[@]}" exec -T codevideo-tts node -e 'fetch("http://127.0.0.1:3000/health").then(async r => {if (!r.ok || !(await r.json()).ready) process.exit(1)}).catch(() => process.exit(1))'
+stage=genie-readiness
+echo '=== Check Genie readiness ==='
 retry "${compose[@]}" exec -T codevideo-genie node -e 'const net=require("node:net");const s=net.connect(3001,"127.0.0.1",()=>s.end());s.setTimeout(5000,()=>process.exit(1));s.on("error",()=>process.exit(1))'
+stage=worker-queue
+echo '=== Check render-worker queue access ==='
 "${compose[@]}" exec -T codevideo-cli sh -ec 'test -d /work/tmp/v3/new && test -w /work/tmp/v3/new'
-"${compose[@]}" logs --no-color --tail=100 codevideo-cli | grep -q 'Watching for new manifest files'
+# An unchanged worker can have been running for days: its one-time startup log
+# may have rotated out, and grep -q can also SIGPIPE Docker under pipefail.
+# Queue access and the running/restart-count soak below test current state.
+stage=container-stability
+echo '=== Check container stability ==='
 for service in "${services[@]}"; do
   container=$("${compose[@]}" ps -a -q "$service")
   [[ -n "$container" ]] || fail "Missing container: $service"
