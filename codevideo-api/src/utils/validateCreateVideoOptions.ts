@@ -39,6 +39,8 @@ export interface ICreateVideoOptions {
   isEditorTabsVisible?: boolean;
   isMinimapVisible?: boolean;
   isMouseVisible?: boolean;
+  // TypeScript squiggles for the whole video; actions can also switch them per lesson
+  isDiagnosticsVisible?: boolean;
   wordWrap?: "on" | "off";
   keyboardTypingPauseMs?: number;
   standardPauseMs?: number;
@@ -70,6 +72,7 @@ const BOOLEAN_FIELDS = [
   "isEditorTabsVisible",
   "isMinimapVisible",
   "isMouseVisible",
+  "isDiagnosticsVisible",
 ] as const;
 const POSITIVE_NUMBER_FIELDS = [
   "fontSizePx",
@@ -181,6 +184,7 @@ export const buildCodeVideoIDEProps = (options: ICreateVideoOptions): Partial<IC
   if (options.isEditorTabsVisible !== undefined) props.isEditorTabsVisible = options.isEditorTabsVisible;
   if (options.isMinimapVisible !== undefined) props.isMinimapVisible = options.isMinimapVisible;
   if (options.isMouseVisible !== undefined) props.isMouseVisible = options.isMouseVisible;
+  if (options.isDiagnosticsVisible !== undefined) props.isDiagnosticsVisible = options.isDiagnosticsVisible;
   if (options.wordWrap !== undefined) props.wordWrap = options.wordWrap;
   if (options.keyboardTypingPauseMs !== undefined) props.keyboardTypingPauseMs = options.keyboardTypingPauseMs;
   if (options.standardPauseMs !== undefined) props.standardPauseMs = options.standardPauseMs;

@@ -68,6 +68,7 @@ describe("validateCreateVideoOptions", () => {
     expect(validateCreateVideoOptions({ voiceId: "" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ withCaptions: "yes" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ isMouseVisible: "no" }).valid).toBe(false);
+    expect(validateCreateVideoOptions({ isDiagnosticsVisible: "yes" }).valid).toBe(false);
     expect(validateCreateVideoOptions({ fontSizePx: 0 }).valid).toBe(false);
     expect(validateCreateVideoOptions({ fontSizePx: -10 }).valid).toBe(false);
     expect(validateCreateVideoOptions({ standardPauseMs: "fast" }).valid).toBe(false);
@@ -98,6 +99,7 @@ describe("buildCodeVideoIDEProps", () => {
       isEditorTabsVisible: false,
       isMinimapVisible: false,
       isMouseVisible: false,
+      isDiagnosticsVisible: true,
       wordWrap: "on",
     });
     expect(buildCodeVideoIDEProps(options)).toEqual({
@@ -105,6 +107,7 @@ describe("buildCodeVideoIDEProps", () => {
       isEditorTabsVisible: false,
       isMinimapVisible: false,
       isMouseVisible: false,
+      isDiagnosticsVisible: true,
       wordWrap: "on",
     });
     expect(buildVideoOptions(options)).toEqual({ orientation: "portrait" });
